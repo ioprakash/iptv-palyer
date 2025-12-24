@@ -1,0 +1,67 @@
+
+> iptv-player@0.0.0 lint
+> eslint .
+
+
+D:\code\iptv-player\src\components\AdminDashboard.tsx
+   19:23   error    'setIsSyncing' is assigned a value but never used                                                                @typescript-eslint/no-unused-vars
+   28:8    warning  React Hook useEffect has a missing dependency: 'loadChannels'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+   49:18   error    'error' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+   63:18   error    'error' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+   75:18   error    'error' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+  208:103  error    Unexpected any. Specify a different type                                                                         @typescript-eslint/no-explicit-any
+
+D:\code\iptv-player\src\components\ChannelList.tsx
+   5:22   error  'Filter' is defined but never used       @typescript-eslint/no-unused-vars
+   5:30   error  'ChevronDown' is defined but never used  @typescript-eslint/no-unused-vars
+   5:43   error  'Circle' is defined but never used       @typescript-eslint/no-unused-vars
+  83:103  error  'height' is defined but never used       @typescript-eslint/no-unused-vars
+
+D:\code\iptv-player\src\components\Player.tsx
+   30:9    error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\code\iptv-player\src\components\Player.tsx:30:9
+  28 |
+  29 |         // Reset error on new URL
+> 30 |         setError(null);
+     |         ^^^^^^^^ Avoid calling setState() directly within an effect
+  31 |
+  32 |         const initPlayer = () => {
+  33 |             if (Hls.isSupported()) {  react-hooks/set-state-in-effect
+  112:60   error  Unnecessary escape character: \/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-useless-escape
+  112:118  error  Unnecessary escape character: \/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              no-useless-escape
+
+D:\code\iptv-player\src\components\PlayerApp.tsx
+  2:24  error  'parseM3U' is defined but never used  @typescript-eslint/no-unused-vars
+
+D:\code\iptv-player\src\declarations.d.ts
+   5:79  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  12:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+D:\code\iptv-player\src\hooks\useChannelStatus.ts
+  11:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+D:\code\iptv-player\src\hooks\useChannelStatus.ts:11:9
+   9 |         if (!url) return;
+  10 |
+> 11 |         setStatus('checking');
+     |         ^^^^^^^^^ Avoid calling setState() directly within an effect
+  12 |         const controller = new AbortController();
+  13 |
+  14 |         const checkStatus = async () => {  react-hooks/set-state-in-effect
+  33:29  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+
+✖ 18 problems (17 errors, 1 warning)
+
