@@ -23,7 +23,21 @@ export const PlayerApp = () => {
             // Default Sort: A-Z
             data.sort((a, b) => a.name.localeCompare(b.name));
             setChannels(data);
-            if (data.length > 0) setSelectedChannel(data[0]);
+
+            // Check for channelId in URL
+            const params = new URLSearchParams(window.location.search);
+            const channelId = params.get('channelId');
+
+            if (channelId) {
+                const target = data.find(c => c.id === channelId);
+                if (target) {
+                    setSelectedChannel(target);
+                } else if (data.length > 0) {
+                    setSelectedChannel(data[0]);
+                }
+            } else if (data.length > 0) {
+                setSelectedChannel(data[0]);
+            }
         } catch (e) {
             console.error('Failed to load channels', e);
         }
@@ -49,7 +63,7 @@ export const PlayerApp = () => {
         });
     }, [channels, search, selectedGroup]);
 
-    // Channel Item Component with Status
+    // Channel Item Component with Status (Tile View)
     const ChannelItem = ({ channel }: { channel: Channel }) => {
         const status = useChannelStatus(channel.url);
         const isActive = selectedChannel?.id === channel.id;
@@ -58,31 +72,31 @@ export const PlayerApp = () => {
             <button
                 onClick={() => setSelectedChannel(channel)}
                 className={clsx(
-                    "w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left group border border-transparent",
-                    isActive ? "bg-blue-600 shadow-lg shadow-blue-500/20 border-blue-500/30" : "hover:bg-white/10 hover:border-white/5"
+                    "flex flex-col items-center gap-2 p-3 rounded-xl transition-all text-center group border border-transparent relative overflow-hidden",
+                    isActive ? "bg-white/10 border-white/10" : "hover:bg-white/5 hover:border-white/5 bg-black/20"
                 )}
             >
+                {/* Active Indicator Bar */}
+                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />}
+
                 <div className="relative shrink-0">
                     {channel.logo ? (
-                        <img src={channel.logo} className="w-10 h-10 rounded-lg object-contain bg-black/40" loading="lazy" />
+                        <img src={channel.logo} className="w-12 h-12 rounded-xl object-contain bg-black/50 p-1" loading="lazy" />
                     ) : (
-                        <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-gray-400">
+                        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold text-gray-400">
                             {channel.name.substring(0, 2)}
                         </div>
                     )}
                     {/* Status Dot */}
                     <div className={clsx(
-                        "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0f0f0f]",
+                        "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a0a0a]",
                         status === 'online' ? "bg-green-500" : status === 'offline' ? "bg-red-500" : "bg-gray-500"
                     )} />
                 </div>
 
-                <div className="min-w-0">
-                    <p className={clsx("font-medium text-sm truncate", isActive ? "text-white" : "text-gray-300 group-hover:text-white")}>
+                <div className="min-w-0 w-full">
+                    <p className={clsx("font-medium text-xs truncate", isActive ? "text-white" : "text-gray-300 group-hover:text-white")}>
                         {channel.name}
-                    </p>
-                    <p className={clsx("text-xs truncate", isActive ? "text-blue-200" : "text-gray-500")}>
-                        {channel.group}
                     </p>
                 </div>
             </button>
@@ -124,21 +138,23 @@ export const PlayerApp = () => {
                     </div>
                 </div>
 
-                {/* Channel List */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-1">
-                    {filteredChannels.length > 0 ? (
-                        filteredChannels.map(channel => (
-                            <ChannelItem key={channel.id} channel={channel} />
-                        ))
-                    ) : (
-                        <div className="text-center py-10 text-gray-500 text-sm">
-                            No channels found
-                        </div>
-                    )}
+                {/* Channel List (Tile View) */}
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                    <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
+                        {filteredChannels.length > 0 ? (
+                            filteredChannels.map(channel => (
+                                <ChannelItem key={channel.id} channel={channel} />
+                            ))
+                        ) : (
+                            <div className="col-span-full text-center py-10 text-gray-500 text-sm">
+                                No channels found
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="p-4 border-t border-white/10 text-center">
-                    <p className="text-xs text-gray-600">v1.2.0 • {channels.length} Channels</p>
+                <div className="p-4 border-t border-white/10 text-center bg-[#0a0a0a]">
+                    <p className="text-xs text-gray-600">v2.1.0 • {channels.length} Channels</p>
                 </div>
             </div>
 

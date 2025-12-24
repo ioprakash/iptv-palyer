@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Tv, Upload, Settings, LogOut,
     Trash2, Globe, Lock, Search, ChevronLeft, ChevronRight,
     Youtube, Video, Monitor, Repeat, CheckSquare, Square, Menu, X,
-    Activity, Signal, WifiOff
+    Activity, Signal, WifiOff, Star, RefreshCw, Plus
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
@@ -13,7 +13,7 @@ import { ChannelStatusBadge } from './ChannelStatusBadge';
 
 export const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'overview' | 'channels' | 'import' | 'settings'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'channels' | 'import' | 'settings' | 'sources'>('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Data State
@@ -36,31 +36,43 @@ export const AdminDashboard: React.FC = () => {
     const [isImporting, setIsImporting] = useState(false);
     const [syncUrl, setSyncUrl] = useState('https://iptv-org.github.io/iptv/index.m3u');
     const [isSyncing, setIsSyncing] = useState(false);
+    const [playlists, setPlaylists] = useState<any[]>([]);
 
     // Add Channel State
     const [newChannel, setNewChannel] = useState<Partial<Channel>>({
-        name: '', url: '', logo: '', group: 'General', type: 'hls', is_public: true, country: 'Unknown', description: ''
+        name: '', url: '', logo: '', group: 'General', type: 'hls', is_public: false, country: 'Unknown', description: ''
     });
 
     useEffect(() => {
         loadChannels();
         loadStats();
+        loadPlaylists();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page, search]);
 
     const loadStats = async () => {
         try {
             const data = await ApiClient.getStats();
-            setStats(data);
+            if (data) setStats(data);
         } catch {
             // ensure safe fallback
+        }
+    };
+
+    const loadPlaylists = async () => {
+        try {
+            const res = await ApiClient.getPlaylists();
+            setPlaylists(res || []);
+        } catch (e) {
+            console.error('Failed to load playlists', e);
+            setPlaylists([]);
         }
     };
 
     const loadChannels = async () => {
         try {
             const res = await ApiClient.getAllChannelsAdmin(page, 50, search);
-            setChannels(res.data);
+            setChannels(res.data || []);
             setTotal(res.total);
             setTotalPages(res.totalPages);
             setSelectedIds(new Set()); // Reset selection on page change
@@ -95,7 +107,7 @@ export const AdminDashboard: React.FC = () => {
 
     const handleBulkDelete = async () => {
         if (!selectedIds.size) return;
-        if (!confirm(`Delete ${selectedIds.size} channels?`)) return;
+        if (!confirm(`Delete ${selectedIds.size} channels ? `)) return;
 
         for (const id of selectedIds) {
             await ApiClient.deleteChannel(id);
@@ -176,6 +188,13 @@ export const AdminDashboard: React.FC = () => {
         }
     };
 
+    const handleToggleFeatured = async (channel: Channel) => {
+        try {
+            await ApiClient.toggleFeatured(channel.id, !channel.is_featured);
+            loadChannels();
+        } catch { alert('Update failed'); }
+    };
+
     // --- Components ---
     const StatCard = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: number, color: string }) => (
         <div className="bg-white/5 border border-white/10 backdrop-blur-xl p-6 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-colors">
@@ -227,7 +246,8 @@ export const AdminDashboard: React.FC = () => {
                     <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Menu</p>
                     <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
                     <SidebarItem id="channels" icon={Tv} label="Channels" />
-                    <SidebarItem id="import" icon={Upload} label="Add & Import" />
+                    <SidebarItem id="sources" icon={Settings} label="Sources" />
+                    <SidebarItem id="import" icon={Upload} label="Direct Import" />
                     <SidebarItem id="settings" icon={Settings} label="Settings" />
                 </div>
 
@@ -354,7 +374,18 @@ export const AdminDashboard: React.FC = () => {
                                                     <td className="p-4 text-center">
                                                         <ChannelStatusBadge id={channel.id} url={channel.url} />
                                                     </td>
-                                                    <td className="p-4 text-center">
+                                                    <td className="p-4 text-center space-x-2">
+                                                        <button
+                                                            onClick={() => handleToggleFeatured(channel)}
+                                                            className={clsx(
+                                                                "p-2 rounded-full transition-all hover:bg-white/10",
+                                                                channel.is_featured ? "text-yellow-400" : "text-gray-600"
+                                                            )}
+                                                            title="Toggle Featured"
+                                                        >
+                                                            <Star size={18} fill={channel.is_featured ? "currentColor" : "none"} />
+                                                        </button>
+
                                                         <button
                                                             onClick={() => handleTogglePublic(channel)}
                                                             className={clsx(
@@ -495,6 +526,103 @@ export const AdminDashboard: React.FC = () => {
                                         <Repeat size={18} className={isSyncing ? "animate-spin" : ""} /> Sync Now
                                     </button>
                                 </div>
+                            </div>
+
+                            <div className="bg-red-500/5 p-8 rounded-2xl border border-red-500/20 backdrop-blur-xl shadow-xl space-y-6">
+                                <div>
+                                    <h3 className="text-xl font-semibold text-red-400 flex items-center gap-2"><Trash2 size={24} /> Danger Zone</h3>
+                                    <p className="text-sm text-red-300/60 mt-1">Irreversible actions. Tread carefully.</p>
+                                </div>
+
+                                <div className="flex justify-between items-center bg-red-500/10 p-4 rounded-xl border border-red-500/10">
+                                    <div>
+                                        <h4 className="font-bold text-red-200">Delete All Channels</h4>
+                                        <p className="text-xs text-red-300/50">Remove all {total} channels from the database.</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm('Are you ABSOLUTELY sure? This will delete ALL channels.') && confirm('This action cannot be undone. Type "yes" to confirm.')) {
+                                                try {
+                                                    await ApiClient.deleteAllChannels();
+                                                    alert('All channels deleted.');
+                                                    loadChannels();
+                                                    loadStats();
+                                                } catch {
+                                                    alert('Failed to delete all channels.');
+                                                }
+                                            }
+                                        }}
+                                        className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
+                                    >
+                                        Delete All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'sources' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-bold">Manage Sources</h2>
+                                <button
+                                    onClick={handleSync}
+                                    disabled={isSyncing}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
+                                    {isSyncing ? 'Syncing All...' : 'Sync All Sources'}
+                                </button>
+                            </div>
+
+                            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6">
+                                <h3 className="tex-lg font-bold mb-4 flex items-center gap-2"><Plus size={18} /> Add New Source</h3>
+                                <form onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    const form = e.target as HTMLFormElement;
+                                    const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+                                    const url = (form.elements.namedItem('url') as HTMLInputElement).value;
+                                    if (name && url) {
+                                        try {
+                                            await ApiClient.addPlaylist(name, url);
+                                            loadPlaylists();
+                                            form.reset();
+                                        } catch { alert('Failed to add source'); }
+                                    }
+                                }} className="flex gap-4">
+                                    <input name="name" placeholder="Source Name (e.g. IPTV Org)" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500" required />
+                                    <input name="url" placeholder="M3U URL" className="flex-[2] bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500" required />
+                                    <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition-colors">Add</button>
+                                </form>
+                            </div>
+
+                            <div className="grid gap-4">
+                                {Array.isArray(playlists) && playlists.map((pl: any) => (
+                                    <div key={pl.id} className="bg-[#0a0a0a] border border-white/10 rounded-xl p-4 flex items-center justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-lg">{pl.name}</h4>
+                                            <p className="text-sm text-gray-500 truncate max-w-md">{pl.url}</p>
+                                            <p className="text-xs text-gray-600 mt-1">Last Synced: {pl.last_synced || 'Never'}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm('Delete this source? Channels synced from here might remain until manually deleted.')) {
+                                                        await ApiClient.deletePlaylist(pl.id);
+                                                        loadPlaylists();
+                                                    }
+                                                }}
+                                                className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!Array.isArray(playlists) || playlists.length === 0) && (
+                                    <div className="text-center py-10 text-gray-500">
+                                        No sources added. Add a playlist URL to start syncing channels.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

@@ -17,6 +17,29 @@ import { parseM3U } from './m3uImporter';
         await db.run("ALTER TABLE channels ADD COLUMN description TEXT");
         console.log("Added 'description' column to channels table");
     } catch (e) { /* Ignore */ }
+
+    try {
+        await db.run("ALTER TABLE channels ADD COLUMN is_featured INTEGER DEFAULT 0");
+        console.log("Added 'is_featured' column to channels table");
+    } catch (e) { /* Ignore */ }
+
+    try {
+        await db.run(`
+            CREATE TABLE IF NOT EXISTS playlists (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                url TEXT,
+                enabled BOOLEAN DEFAULT 1,
+                last_synced DATETIME
+            )
+        `);
+        console.log("Ensured 'playlists' table exists");
+    } catch (e) { console.error("Error creating playlists table", e); }
+
+    try {
+        await db.run("ALTER TABLE channels ADD COLUMN playlist_id TEXT");
+        console.log("Added 'playlist_id' column to channels table");
+    } catch (e) { /* Ignore */ }
 })();
 
 const app = express();
@@ -166,68 +189,98 @@ app.post('/api/admin/channels/visibility', async (req, res) => {
     }
 });
 
-// ADMIN: Sync with IPTV-Org or Custom URL
+// ADMIN: Get Playlists
+app.get('/api/admin/playlists', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const playlists = await db.all('SELECT * FROM playlists');
+        res.json(playlists);
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: Add Playlist
+app.post('/api/admin/playlists', async (req, res) => {
+    const { name, url } = req.body;
+    const id = randomUUID();
+    try {
+        const db = await dbPromise;
+        await db.run('INSERT INTO playlists (id, name, url) VALUES (?, ?, ?)', [id, name, url]);
+        res.json({ message: 'Playlist added', id });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add playlist' });
+    }
+});
+
+// ADMIN: Delete Playlist
+app.delete('/api/admin/playlists/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const db = await dbPromise;
+        await db.run('DELETE FROM playlists WHERE id = ?', [id]);
+        await db.run('DELETE FROM channels WHERE playlist_id = ?', [id]); // Optional: Delete channels from this playlist?
+        res.json({ message: 'Playlist deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete playlist' });
+    }
+});
+
+// ADMIN: Sync All Playlists (Smart Sync)
 app.post('/api/admin/sync', async (req, res) => {
     try {
-        const { url = 'https://iptv-org.github.io/iptv/index.m3u' } = req.body;
-        console.log(`Starting Sync from: ${url}`);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch playlist');
-        const text = await response.text();
-        const channels = parseM3U(text);
-
         const db = await dbPromise;
-        await db.run('BEGIN TRANSACTION');
+        const playlists = await db.all('SELECT * FROM playlists WHERE enabled = 1');
 
-        // UPSERT Logic:
-        // 1. Insert new channels as PRIVATE (by default in schema, or explicit check)
-        // 2. Update existing channels metadata
-        // 3. DO NOT touch is_public for existing channels
+        let totalAdded = 0;
 
-        const stmt = await db.prepare(`
-            INSERT INTO channels (id, name, url, logo, group_title, country, type, is_public)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-            ON CONFLICT(url) DO UPDATE SET
-                name = excluded.name,
-                logo = excluded.logo,
-                group_title = excluded.group_title,
-                country = excluded.country,
-                type = excluded.type
-                -- is_public is PRESERVED
-        `);
+        for (const playlist of playlists) {
+            console.log(`Syncing playlist: ${playlist.name} (${playlist.url})`);
+            try {
+                const response = await fetch(playlist.url);
+                if (!response.ok) {
+                    // console.error(`Failed to fetch ${playlist.url}`);
+                    continue;
+                }
+                const text = await response.text();
+                const channels = parseM3U(text);
 
-        // Process in chunks to avoid blowing up memory/transaction limits if needed, 
-        // but 30k is manageable in one go for SQLite usually.
-        for (const channel of channels) {
-            await stmt.run(
-                channel.id, // ID might change if URL same but ID logic differs? ID is generated from URL hash usually or random. 
-                // If we match on URL, ID in DB is source of truth? 
-                // Wait, if we match on URL, we should probably keep the OLD ID?
-                // Actually, INSERT OR IGNORE and then UPDATE would be better but ON CONFLICT handles it.
-                // If URL matches, 'id' in VALUES is ignored for the ROW, but we aren't updating ID. Good.
-                channel.name,
-                channel.url,
-                channel.logo || '',
-                channel.group_title || 'General',
-                channel.country || 'Unknown',
-                channel.type
-            );
+                for (const channel of channels) {
+                    const existing = await db.get('SELECT id FROM channels WHERE url = ?', [channel.url]);
+
+                    if (existing) {
+                        await db.run(
+                            `UPDATE channels SET name = ?, logo = ?, group_title = ?, country = ?, playlist_id = ? WHERE id = ?`,
+                            [channel.name, channel.logo, channel.group, channel.country, playlist.id, existing.id]
+                        );
+                    } else {
+                        await db.run(
+                            `INSERT INTO channels (id, name, url, logo, group_title, country, type, is_public, playlist_id)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            [randomUUID(), channel.name, channel.url, channel.logo, channel.group, channel.country, 'hls', 0, playlist.id]
+                        );
+                        totalAdded++;
+                    }
+                }
+
+                await db.run('UPDATE playlists SET last_synced = CURRENT_TIMESTAMP WHERE id = ?', [playlist.id]);
+
+            } catch (err) {
+                console.error(`Error syncing playlist ${playlist.name}:`, err);
+            }
         }
 
-        await stmt.finalize();
-        await db.run('COMMIT');
-
-        res.json({ message: `Synced ${channels.length} channels successfully` });
+        res.json({ message: `Sync complete. Added ${totalAdded} new channels.` });
     } catch (error) {
-        console.error('Sync failed:', error);
-        if (await dbPromise.then(db => db.get('SELECT 1'))) await (await dbPromise).run('ROLLBACK');
+        console.error(error);
         res.status(500).json({ error: 'Sync failed' });
     }
 });
 
+
 // ADMIN: Add Channel
 app.post('/api/channels', async (req, res) => {
-    const { name, url, logo, group_title, country, type, is_public = true } = req.body;
+    const { name, url, logo, group_title, country, type, is_public = false } = req.body;
     if (!name || !url) {
         res.status(400).json({ error: 'Name and URL are required' });
         return;
@@ -262,6 +315,20 @@ app.patch('/api/channels/:id', async (req, res) => {
     }
 });
 
+// ADMIN: Delete All Channels
+app.delete('/api/admin/channels/all', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        await db.run('DELETE FROM channels');
+        // Reset sqlite sequence for auto-increment if used, though UUIDs are used here.
+        // Vacuum to reclaim space? Maybe overkill for now.
+        res.json({ message: 'All channels deleted' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to delete all channels' });
+    }
+});
+
 // ADMIN: Delete Channel
 app.delete('/api/channels/:id', async (req, res) => {
     const { id } = req.params;
@@ -272,6 +339,30 @@ app.delete('/api/channels/:id', async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to delete channel' });
+    }
+});
+
+// ADMIN: Featured Toggle
+app.patch('/api/admin/channels/:id/feature', async (req, res) => {
+    const { id } = req.params;
+    const { is_featured } = req.body;
+    try {
+        const db = await dbPromise;
+        await db.run('UPDATE channels SET is_featured = ? WHERE id = ?', [is_featured ? 1 : 0, id]);
+        res.json({ message: 'Updated featured status' });
+    } catch (error) {
+        res.status(500).json({ error: 'Update failed' });
+    }
+});
+
+// PUBLIC: Get Featured Channels
+app.get('/api/featured', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const channels = await db.all('SELECT * FROM channels WHERE is_featured = 1 AND is_public = 1 LIMIT 6');
+        res.json(channels);
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
     }
 });
 

@@ -3,6 +3,7 @@ import { LandingPage } from './components/LandingPage';
 import { PlayerApp } from './components/PlayerApp';
 import { AdminDashboard } from './components/AdminDashboard';
 import { Login } from './components/Login';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const token = localStorage.getItem('adminToken');
@@ -21,7 +22,9 @@ function App() {
           path="/admin"
           element={
             <ProtectedRoute>
-              <AdminDashboard />
+              <ErrorBoundary>
+                <AdminDashboard />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />

@@ -10,6 +10,7 @@ export const ApiClient = {
 
     getAllChannelsAdmin: async (page = 1, limit = 50, search = ''): Promise<{ data: Channel[], total: number, page: number, totalPages: number }> => {
         const res = await fetch(`${API_Base}/admin/channels?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+        if (!res.ok) throw new Error(res.statusText);
         return res.json();
     },
 
@@ -63,6 +64,12 @@ export const ApiClient = {
         await fetch(`${API_Base}/channels/${id}`, { method: 'DELETE' });
     },
 
+    deleteAllChannels: async () => {
+        const res = await fetch(`${API_Base}/admin/channels/all`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+    },
+
     login: async (username: string, password: string): Promise<{ token: string, message: string }> => {
         const res = await fetch(`${API_Base}/login`, {
             method: 'POST',
@@ -75,6 +82,7 @@ export const ApiClient = {
 
     getStats: async () => {
         const res = await fetch(`${API_Base}/admin/stats`);
+        if (!res.ok) throw new Error(res.statusText);
         return res.json();
     },
 
@@ -84,5 +92,35 @@ export const ApiClient = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
         });
+    },
+
+    toggleFeatured: async (id: string, is_featured: boolean) => {
+        await fetch(`${API_Base}/admin/channels/${id}/feature`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_featured })
+        });
+    },
+
+    getFeatured: async (): Promise<Channel[]> => {
+        const res = await fetch(`${API_Base}/featured`);
+        return res.json();
+    },
+
+    getPlaylists: async () => {
+        const res = await fetch(`${API_Base}/admin/playlists`);
+        return res.json();
+    },
+
+    addPlaylist: async (name: string, url: string) => {
+        await fetch(`${API_Base}/admin/playlists`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, url })
+        });
+    },
+
+    deletePlaylist: async (id: string) => {
+        await fetch(`${API_Base}/admin/playlists/${id}`, { method: 'DELETE' });
     }
 };
