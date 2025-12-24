@@ -71,5 +71,18 @@ export const ApiClient = {
         });
         if (!res.ok) throw new Error('Invalid credentials');
         return res.json();
+    },
+
+    getStats: async () => {
+        const res = await fetch(`${API_Base}/admin/stats`);
+        return res.json();
+    },
+
+    updateStatus: async (id: string, status: 'online' | 'offline' | 'unknown') => {
+        await fetch(`${API_Base}/admin/channel/${id}/status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
     }
 };

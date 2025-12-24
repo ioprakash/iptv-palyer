@@ -5,6 +5,20 @@ import { dbPromise } from './database';
 import { randomUUID } from 'crypto';
 import { parseM3U } from './m3uImporter';
 
+// Schema Migration: Add status and description columns if not exists
+(async () => {
+    const db = await dbPromise;
+    try {
+        await db.run("ALTER TABLE channels ADD COLUMN status TEXT DEFAULT 'unknown'");
+        console.log("Added 'status' column to channels table");
+    } catch (e) { /* Ignore */ }
+
+    try {
+        await db.run("ALTER TABLE channels ADD COLUMN description TEXT");
+        console.log("Added 'description' column to channels table");
+    } catch (e) { /* Ignore */ }
+})();
+
 const app = express();
 const PORT = 3001;
 
@@ -28,6 +42,40 @@ app.get('/api/channels', async (req, res) => {
         res.json(channels);
     } catch (error) {
         console.error(error);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: Get Dashboard Stats
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const total = await db.get('SELECT COUNT(*) as count FROM channels');
+        const publicCount = await db.get('SELECT COUNT(*) as count FROM channels WHERE is_public = 1');
+        const privateCount = await db.get('SELECT COUNT(*) as count FROM channels WHERE is_public = 0');
+        const online = await db.get("SELECT COUNT(*) as count FROM channels WHERE status = 'online'");
+        const offline = await db.get("SELECT COUNT(*) as count FROM channels WHERE status = 'offline'");
+
+        res.json({
+            total: total.count,
+            public: publicCount.count,
+            private: privateCount.count,
+            online: online.count,
+            offline: offline.count
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: Update Channel Status
+app.post('/api/admin/channel/:id/status', async (req, res) => {
+    const { status } = req.body;
+    try {
+        const db = await dbPromise;
+        await db.run('UPDATE channels SET status = ? WHERE id = ?', [status, req.params.id]);
+        res.json({ success: true });
+    } catch (error) {
         res.status(500).json({ error: 'Database error' });
     }
 });
@@ -73,7 +121,7 @@ app.post('/api/admin/import', async (req, res) => {
 
         // Batch Insert Transaction
         await db.run('BEGIN TRANSACTION');
-        const stmt = await db.prepare('INSERT OR IGNORE INTO channels (id, name, url, logo, group_title, country, type, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        const stmt = await db.prepare('INSERT OR IGNORE INTO channels (id, name, url, logo, group_title, country, type, is_public, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
         for (const channel of channels) {
             // Use the requested default visibility, or the parser's result if it was explicitly set (unlikely for basic M3U)
@@ -88,7 +136,8 @@ app.post('/api/admin/import', async (req, res) => {
                 channel.group_title || 'General',
                 channel.country || 'Unknown',
                 channel.type,
-                finalIsPublic
+                finalIsPublic,
+                channel.description || ''
             );
         }
         await stmt.finalize();

@@ -5,6 +5,7 @@ export interface Channel {
     group?: string;
     url: string;
     country?: string;
+    description?: string;
     language?: string;
     quality?: 'SD' | 'HD' | 'FHD' | '4K';
     type?: 'hls' | 'youtube' | 'iframe';
