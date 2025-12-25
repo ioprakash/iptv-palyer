@@ -492,6 +492,22 @@ app.post('/api/admin/epg/sync', async (req, res) => {
     }
 });
 
+// Serve Static Frontend (Production)
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve static files from ../dist
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// SPA Fallback
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
+
+// Start Server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
 });

@@ -1,0 +1,11 @@
+services:
+  iptv-player:
+    build: .
+    container_name: iptv-player
+    ports:
+      - "3000:3001"
+    restart: always
+    volumes:
+      - ./data:/app/server/db # Persist SQLite DB
+    environment:
+      - PORT=3001

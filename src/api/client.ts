@@ -1,6 +1,6 @@
 import { Channel } from '../utils/m3uParser';
 
-const API_Base = 'http://localhost:3001/api';
+const API_Base = '/api';
 
 export const ApiClient = {
     getChannels: async (): Promise<Channel[]> => {
