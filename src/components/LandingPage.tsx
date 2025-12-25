@@ -38,25 +38,52 @@ export const LandingPage: React.FC = () => {
             <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-6">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none opacity-50" />
 
-                <div className="max-w-4xl mx-auto text-center relative z-10">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 animate-fade-in-up">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-sm font-medium text-gray-300">v2.0 Now Available</span>
+                <div className="max-w-7xl mx-auto relative z-10 grid lg:grid-cols-2 gap-12 items-center">
+                    {/* Left Column: Text */}
+                    <div className="text-center lg:text-left">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 mb-8 animate-fade-in-up">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-sm font-medium text-gray-300">v2.0 Now Available</span>
+                        </div>
+                        <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight">
+                            Next Generation <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-500">IPTV Experience</span>
+                        </h1>
+                        <p className="text-xl text-gray-400 mb-10 leading-relaxed">
+                            Stream your favorite channels in 4K quality with a modern, lightning-fast web player. No installation required.
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
+                            <Link to="/app" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl font-bold text-lg shadow-xl shadow-blue-600/20 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2">
+                                <Play size={20} fill="currentColor" /> Start Watching Now
+                            </Link>
+                            <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all backdrop-blur-md">
+                                Manage Playlist
+                            </Link>
+                        </div>
                     </div>
-                    <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-8 leading-tight">
-                        Next Generation <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-500">IPTV Experience</span>
-                    </h1>
-                    <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                        Stream your favorite channels in 4K quality with a modern, lightning-fast web player. No installation required.
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <Link to="/app" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl font-bold text-lg shadow-xl shadow-blue-600/20 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2">
-                            <Play size={20} fill="currentColor" /> Start Watching Now
-                        </Link>
-                        <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all backdrop-blur-md">
-                            Manage Playlist
-                        </Link>
+
+                    {/* Right Column: Hero Image */}
+                    <div className="relative hidden lg:block perspective-1000">
+                        {/* Abstract blobs */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[100px] -z-10" />
+
+                        <div className="relative transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-0 transition-transform duration-500 shadow-2xl shadow-blue-500/30 rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a]">
+                            <div className="aspect-video bg-gray-900 relative group cursor-default">
+                                <img
+                                    src="/src/assets/hero_mockup.png"
+                                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
+                                    alt="App Preview"
+                                />
+                                {/* Overlay gradient */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent opacity-50" />
+
+                                {/* Floating Badge */}
+                                <div className="absolute bottom-6 right-6 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg flex items-center gap-3 shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                                    <span className="font-mono text-xs text-gray-300">LIVE FEED</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

@@ -1,165 +1,135 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiClient } from '../api/client';
 import { Channel } from '../utils/m3uParser';
+import { ChannelList } from './ChannelList';
 import { ModernPlayer } from './ModernPlayer';
-import { Search, ChevronDown, MonitorPlay } from 'lucide-react';
-import clsx from 'clsx';
-import { useChannelStatus } from '../hooks/useChannelStatus';
+import { Menu, ArrowLeft, Tv } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 export const PlayerApp = () => {
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-    const [search, setSearch] = useState('');
-    const [selectedGroup, setSelectedGroup] = useState('All');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [loading, setLoading] = useState(true);
+    const [searchParams] = useSearchParams();
 
     useEffect(() => {
-        loadChannels();
-    }, []);
+        const load = async () => {
+            try {
+                // Fetch public channels
+                const data = await ApiClient.getChannels();
+                setChannels(data);
 
-    const loadChannels = async () => {
-        try {
-            // Player view shows only public channels
-            const data = await ApiClient.getChannels();
-            // Default Sort: A-Z
-            data.sort((a, b) => a.name.localeCompare(b.name));
-            setChannels(data);
-
-            // Check for channelId in URL
-            const params = new URLSearchParams(window.location.search);
-            const channelId = params.get('channelId');
-
-            if (channelId) {
-                const target = data.find(c => c.id === channelId);
-                if (target) {
-                    setSelectedChannel(target);
-                } else if (data.length > 0) {
+                // Auto-select from URL or default to first
+                const urlChannelId = searchParams.get('channelId');
+                if (urlChannelId) {
+                    const target = data.find(c => c.id === urlChannelId);
+                    if (target) {
+                        setSelectedChannel(target);
+                    } else if (data.length > 0) {
+                        setSelectedChannel(data[0]);
+                    }
+                } else if (data.length > 0 && !selectedChannel) {
                     setSelectedChannel(data[0]);
                 }
-            } else if (data.length > 0) {
-                setSelectedChannel(data[0]);
+            } catch (e) {
+                console.error("Failed to load channels", e);
+            } finally {
+                setLoading(false);
             }
-        } catch (e) {
-            console.error('Failed to load channels', e);
-        }
-    };
+        };
+        load();
+    }, []);
 
-    const groups = useMemo(() => {
-        const unique = new Set(channels.map(c => c.group || 'General'));
-        const defaults = ['Live TV', 'Sports', 'Movies', 'News'];
-        // Merge defaults and unique, filtering out any defaults that might already be in unique to avoid dups if case differs (though Set handles exact matches)
-        // Actually, we want defaults to appear first in the list if they exist or even if they don't (as empty filters?)
-        // User requested "add some random default categories".
-        // Let's ensure they are available in the dropdown.
-
-        const merged = new Set([...defaults, ...Array.from(unique)]);
-        return ['All', ...Array.from(merged)];
-    }, [channels]);
-
-    const filteredChannels = useMemo(() => {
-        return channels.filter(c => {
-            const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-            const matchGroup = selectedGroup === 'All' || c.group === selectedGroup;
-            return matchSearch && matchGroup;
-        });
-    }, [channels, search, selectedGroup]);
-
-    // Channel Item Component with Status (Tile View)
-    const ChannelItem = ({ channel }: { channel: Channel }) => {
-        const status = useChannelStatus(channel.url);
-        const isActive = selectedChannel?.id === channel.id;
-
+    if (loading) {
         return (
-            <button
-                onClick={() => setSelectedChannel(channel)}
-                className={clsx(
-                    "flex flex-col items-center gap-2 p-3 rounded-xl transition-all text-center group border border-transparent relative overflow-hidden",
-                    isActive ? "bg-white/10 border-white/10" : "hover:bg-white/5 hover:border-white/5 bg-black/20"
-                )}
-            >
-                {/* Active Indicator Bar */}
-                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />}
-
-                <div className="relative shrink-0">
-                    {channel.logo ? (
-                        <img src={channel.logo} className="w-12 h-12 rounded-xl object-contain bg-black/50 p-1" loading="lazy" />
-                    ) : (
-                        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold text-gray-400">
-                            {channel.name.substring(0, 2)}
-                        </div>
-                    )}
-                    {/* Status Dot */}
-                    <div className={clsx(
-                        "absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0a0a0a]",
-                        status === 'online' ? "bg-green-500" : status === 'offline' ? "bg-red-500" : "bg-gray-500"
-                    )} />
-                </div>
-
-                <div className="min-w-0 w-full">
-                    <p className={clsx("font-medium text-xs truncate", isActive ? "text-white" : "text-gray-300 group-hover:text-white")}>
-                        {channel.name}
-                    </p>
-                </div>
-            </button>
+            <div className="h-screen bg-black text-white flex flex-col items-center justify-center gap-4">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-400 font-mono animate-pulse">Loading Channels...</p>
+            </div>
         );
-    };
+    }
 
     return (
-        <div className="flex h-screen bg-[#050505] text-white font-sans overflow-hidden">
-            {/* Sidebar */}
-            <div className="w-80 flex-shrink-0 flex flex-col border-r border-white/10 bg-[#0a0a0a]">
-                {/* Header */}
-                <div className="p-6 border-b border-white/10">
-                    <h1 className="text-xl font-bold flex items-center gap-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                        <MonitorPlay className="text-blue-500" /> IPTV Player
-                    </h1>
-                </div>
+        <div className="flex h-screen bg-black overflow-hidden relative font-sans text-white">
+            {/* Mobile Header Overlay */}
+            <div className="lg:hidden absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between pointer-events-none">
+                <button
+                    className="p-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-lg text-white pointer-events-auto hover:bg-white/10 active:scale-95 transition-all"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                >
+                    <Menu size={24} />
+                </button>
+            </div>
 
-                {/* Search & Filter */}
-                <div className="p-4 space-y-4">
-                    <div className="relative group">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <input
-                            placeholder="Search channels..."
-                            className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:border-blue-500 transition-all placeholder:text-gray-600"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
+            {/* Sidebar */}
+            <div className={`
+                fixed lg:relative z-40 h-full w-80 bg-[#0a0a0a] border-r border-white/5 transition-all duration-300 ease-in-out shadow-2xl lg:shadow-none
+                ${isSidebarOpen ? 'translate-x-0 ml-0' : '-translate-x-full lg:ml-[-20rem]'}
+            `}>
+                <div className="h-full flex flex-col">
+                    {/* Sidebar Header */}
+                    <div className="p-4 border-b border-white/5 flex items-center justify-between bg-[#121212]">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="text-gray-400 hover:text-white lg:hidden"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="text-gray-400 hover:text-white hidden lg:block"
+                                title="Collapse Sidebar"
+                            >
+                                <Menu size={20} />
+                            </button>
+                            <Link to="/" className="text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors">
+                                <ArrowLeft size={16} className="hidden lg:block" /> Back
+                            </Link>
+                        </div>
+                        <h1 className="font-bold flex items-center gap-2 text-blue-500">
+                            <Tv size={20} /> IPTV
+                        </h1>
+                    </div>
+
+                    {/* Channel List */}
+                    <div className="flex-1 overflow-hidden">
+                        <ChannelList
+                            channels={channels}
+                            selectedChannel={selectedChannel}
+                            onSelectChannel={(c) => {
+                                setSelectedChannel(c);
+                                // Close sidebar on mobile when selecting a channel
+                                if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                            }}
+                            height={0} // Managed by CSS/Virtuoso internally usually
                         />
                     </div>
-
-                    <div className="relative">
-                        <select
-                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-blue-500 appearance-none cursor-pointer"
-                            value={selectedGroup}
-                            onChange={e => setSelectedGroup(e.target.value)}
-                        >
-                            {groups.map(g => <option key={g} value={g}>{g}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={16} />
-                    </div>
-                </div>
-
-                {/* Channel List (Tile View) */}
-                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                    <div className="grid grid-cols-2 lg:grid-cols-2 gap-2">
-                        {filteredChannels.length > 0 ? (
-                            filteredChannels.map(channel => (
-                                <ChannelItem key={channel.id} channel={channel} />
-                            ))
-                        ) : (
-                            <div className="col-span-full text-center py-10 text-gray-500 text-sm">
-                                No channels found
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="p-4 border-t border-white/10 text-center bg-[#0a0a0a]">
-                    <p className="text-xs text-gray-600">v2.1.0 • {channels.length} Channels</p>
                 </div>
             </div>
 
+            {/* Sidebar Backdrop (Mobile) */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
+            {/* Open Sidebar Button (External) */}
+            {!isSidebarOpen && (
+                <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="absolute top-4 left-4 z-50 p-2 bg-black/50 backdrop-blur-md border border-white/10 rounded-lg text-white hover:bg-white/10 transition-all shadow-xl"
+                    title="Open Sidebar"
+                >
+                    <Menu size={24} />
+                </button>
+            )}
+
             {/* Main Player Area */}
-            <div className="flex-1 bg-black relative">
+            <div className={`flex-1 h-full w-full relative flex flex-col bg-black transition-all ${isSidebarOpen ? '' : 'w-full'}`}>
                 {selectedChannel ? (
                     <ModernPlayer
                         channel={selectedChannel}
@@ -167,8 +137,9 @@ export const PlayerApp = () => {
                         onChannelSelect={setSelectedChannel}
                     />
                 ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                        <p>Select a channel to start watching</p>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4">
+                        <Tv size={64} className="opacity-20" />
+                        <p className="text-lg">Select a channel to start watching</p>
                     </div>
                 )}
             </div>

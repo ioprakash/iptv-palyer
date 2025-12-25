@@ -178,7 +178,7 @@ export const ModernPlayer: React.FC<Props> = ({ channel, allChannels, onChannelS
     // Filter Recommended (Same Group or Random)
     const recommended = allChannels
         .filter(c => c.id !== channel.id && c.group === channel.group)
-        .slice(0, 10);
+        .slice(0, 12);
 
     // If iframe/youtube, render differently (Simplified for this file)
     if (channel.type === 'iframe') {

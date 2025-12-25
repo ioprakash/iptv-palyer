@@ -411,7 +411,7 @@ app.patch('/api/admin/channels/:id/feature', async (req, res) => {
 app.get('/api/featured', async (req, res) => {
     try {
         const db = await dbPromise;
-        const channels = await db.all('SELECT * FROM channels WHERE is_featured = 1 AND is_public = 1 LIMIT 6');
+        const channels = await db.all('SELECT * FROM channels WHERE is_featured = 1 AND is_public = 1 LIMIT 12');
         res.json(channels);
     } catch (error) {
         res.status(500).json({ error: 'Database error' });
