@@ -8,8 +8,11 @@ export const ApiClient = {
         return res.json();
     },
 
-    getAllChannelsAdmin: async (page = 1, limit = 50, search = ''): Promise<{ data: Channel[], total: number, page: number, totalPages: number }> => {
-        const res = await fetch(`${API_Base}/admin/channels?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+    getAllChannelsAdmin: async (page = 1, limit = 50, search = '', country = '', group = ''): Promise<{ data: Channel[], total: number, page: number, totalPages: number }> => {
+        let url = `${API_Base}/admin/channels?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
+        if (country) url += `&country=${encodeURIComponent(country)}`;
+        if (group) url += `&group=${encodeURIComponent(group)}`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
     },
@@ -122,5 +125,37 @@ export const ApiClient = {
 
     deletePlaylist: async (id: string) => {
         await fetch(`${API_Base}/admin/playlists/${id}`, { method: 'DELETE' });
+    },
+
+    // EPG
+    getEPGSources: async () => {
+        const res = await fetch(`${API_Base}/admin/epg/sources`);
+        return res.json();
+    },
+    addEPGSource: async (name: string, url: string) => {
+        const res = await fetch(`${API_Base}/admin/epg/sources`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, url })
+        });
+        return res.json();
+    },
+    deleteEPGSource: async (id: string) => {
+        const res = await fetch(`${API_Base}/admin/epg/sources/${id}`, { method: 'DELETE' });
+        return res.json();
+    },
+    syncEPG: async () => {
+        const res = await fetch(`${API_Base}/admin/epg/sync`, { method: 'POST' });
+        return res.json();
+    },
+
+    getIPTVOrgCountries: async () => {
+        const res = await fetch(`${API_Base}/admin/iptv-org/countries`);
+        return res.json();
+    },
+
+    getIPTVOrgCategories: async () => {
+        const res = await fetch(`${API_Base}/admin/iptv-org/categories`);
+        return res.json();
     }
 };

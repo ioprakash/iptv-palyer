@@ -22,7 +22,7 @@ export const parseM3U = (content: string): Channel[] => {
         line = line.trim();
         if (!line) continue;
 
-        if (line.startsWith('#EXTINF:')) {
+        if (line.startsWith('#EXTINF:') || line.startsWith('# EXTINF:')) {
             // Safe Initialization
             currentChannel = { is_public: false, type: 'hls' }; // Default to hidden
 
@@ -49,7 +49,7 @@ export const parseM3U = (content: string): Channel[] => {
                 else currentChannel.quality = 'SD';
             }
 
-        } else if (!line.startsWith('#')) {
+        } else if (!line.trim().startsWith('#')) {
             // It's the URL
             currentChannel.url = line;
             currentChannel.id = randomUUID();

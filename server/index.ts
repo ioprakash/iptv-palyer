@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import { dbPromise } from './database';
 import { randomUUID } from 'crypto';
 import { parseM3U } from './m3uImporter';
+import { syncEPGSource } from './epgSyncer';
 
 // Schema Migration: Add status and description columns if not exists
 (async () => {
@@ -40,6 +41,41 @@ import { parseM3U } from './m3uImporter';
         await db.run("ALTER TABLE channels ADD COLUMN playlist_id TEXT");
         console.log("Added 'playlist_id' column to channels table");
     } catch (e) { /* Ignore */ }
+
+    try {
+        await db.run("ALTER TABLE playlists ADD COLUMN channel_count INTEGER DEFAULT 0");
+        console.log("Added 'channel_count' column to playlists table");
+    } catch (e) { /* Ignore */ }
+
+    try {
+        await db.run(`
+            CREATE TABLE IF NOT EXISTS epg_sources (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                url TEXT,
+                enabled BOOLEAN DEFAULT 1,
+                last_synced DATETIME
+            )
+        `);
+        console.log("Ensured 'epg_sources' table exists");
+    } catch (e) { console.error("Error creating epg_sources", e); }
+
+    try {
+        await db.run(`
+            CREATE TABLE IF NOT EXISTS program_guide (
+                id TEXT PRIMARY KEY,
+                channel_id TEXT,
+                tvg_id TEXT,
+                start DATETIME,
+                stop DATETIME,
+                title TEXT,
+                description TEXT
+            )
+        `);
+        // Index for faster lookups
+        await db.run("CREATE INDEX IF NOT EXISTS idx_program_tvg_start ON program_guide(tvg_id, start)");
+        console.log("Ensured 'program_guide' table exists");
+    } catch (e) { console.error("Error creating program_guide", e); }
 })();
 
 const app = express();
@@ -108,18 +144,32 @@ app.get('/api/admin/channels', async (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
     const search = req.query.search ? `%${req.query.search}%` : '%';
+    const country = req.query.country as string;
+    const group = req.query.group as string;
     const offset = (page - 1) * limit;
 
     try {
         const db = await dbPromise;
-        const channels = await db.all(
-            'SELECT * FROM channels WHERE name LIKE ? LIMIT ? OFFSET ?',
-            [search, limit, offset]
-        );
-        const countResult = await db.get(
-            'SELECT COUNT(*) as count FROM channels WHERE name LIKE ?',
-            [search]
-        );
+        let query = 'SELECT * FROM channels WHERE name LIKE ?';
+        let countQuery = 'SELECT COUNT(*) as count FROM channels WHERE name LIKE ?';
+        const params: any[] = [search];
+
+        if (country) {
+            query += ' AND country = ?';
+            countQuery += ' AND country = ?';
+            params.push(country);
+        }
+
+        if (group) {
+            query += ' AND group_title = ?';
+            countQuery += ' AND group_title = ?';
+            params.push(group);
+        }
+
+        query += ' LIMIT ? OFFSET ?';
+
+        const channels = await db.all(query, [...params, limit, offset]);
+        const countResult = await db.get(countQuery, params);
 
         res.json({
             data: channels,
@@ -243,7 +293,9 @@ app.post('/api/admin/sync', async (req, res) => {
                     continue;
                 }
                 const text = await response.text();
+                // console.log(`Fetched ${text.length} chars from ${playlist.url}`);
                 const channels = parseM3U(text);
+                console.log(`Parsed ${channels.length} channels from ${playlist.name}`);
 
                 for (const channel of channels) {
                     const existing = await db.get('SELECT id FROM channels WHERE url = ?', [channel.url]);
@@ -263,8 +315,8 @@ app.post('/api/admin/sync', async (req, res) => {
                     }
                 }
 
-                await db.run('UPDATE playlists SET last_synced = CURRENT_TIMESTAMP WHERE id = ?', [playlist.id]);
-
+                const channelCount = channels.length;
+                await db.run('UPDATE playlists SET last_synced = CURRENT_TIMESTAMP, channel_count = ? WHERE id = ?', [channelCount, playlist.id]);
             } catch (err) {
                 console.error(`Error syncing playlist ${playlist.name}:`, err);
             }
@@ -363,6 +415,80 @@ app.get('/api/featured', async (req, res) => {
         res.json(channels);
     } catch (error) {
         res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: IPTV-Org Proxy - Countries
+app.get('/api/admin/iptv-org/countries', async (req, res) => {
+    try {
+        const response = await fetch('https://iptv-org.github.io/api/countries.json');
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch countries' });
+    }
+});
+
+// ADMIN: IPTV-Org Proxy - Categories
+app.get('/api/admin/iptv-org/categories', async (req, res) => {
+    try {
+        const response = await fetch('https://iptv-org.github.io/api/categories.json');
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+});
+
+// ADMIN: EPG Source Management
+app.get('/api/admin/epg/sources', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const sources = await db.all('SELECT * FROM epg_sources');
+        res.json(sources);
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+app.post('/api/admin/epg/sources', async (req, res) => {
+    const { name, url } = req.body;
+    const id = randomUUID();
+    try {
+        const db = await dbPromise;
+        await db.run('INSERT INTO epg_sources (id, name, url) VALUES (?, ?, ?)', [id, name, url]);
+        res.json({ message: 'EPG Source added', id });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add source' });
+    }
+});
+
+app.delete('/api/admin/epg/sources/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const db = await dbPromise;
+        await db.run('DELETE FROM epg_sources WHERE id = ?', [id]);
+        res.json({ message: 'EPG Source deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete source' });
+    }
+});
+
+// ADMIN: Trigger EPG Sync
+app.post('/api/admin/epg/sync', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const sources = await db.all('SELECT * FROM epg_sources WHERE enabled = 1');
+
+        let totalPrograms = 0;
+        for (const source of sources) {
+            totalPrograms += await syncEPGSource(source.id, source.url);
+        }
+
+        res.json({ message: `EPG Sync Complete. Total Programs: ${totalPrograms}` });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'EPG Sync failed' });
     }
 });
 

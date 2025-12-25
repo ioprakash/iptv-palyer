@@ -4,12 +4,37 @@ import { type Channel } from '../utils/m3uParser';
 import {
     LayoutDashboard, Tv, Upload, Settings, LogOut,
     Trash2, Globe, Lock, Search, ChevronLeft, ChevronRight,
-    Youtube, Video, Monitor, Repeat, CheckSquare, Square, Menu, X,
-    Activity, Signal, WifiOff, Star, RefreshCw, Plus
+    Youtube, Video, Monitor, Repeat, CheckSquare, Square, Menu,
+    Activity, Signal, WifiOff, Star, RefreshCw
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { ChannelStatusBadge } from './ChannelStatusBadge';
+
+interface IPTVCountry {
+    code: string;
+    name: string;
+}
+
+interface IPTVCategory {
+    id: string;
+    name: string;
+}
+
+interface Playlist {
+    id: string;
+    name: string;
+    url: string;
+    last_synced?: string;
+    channel_count?: number;
+}
+
+interface EPGSource {
+    id: string;
+    name: string;
+    url: string;
+    last_synced?: string;
+}
 
 export const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
@@ -36,19 +61,35 @@ export const AdminDashboard: React.FC = () => {
     const [isImporting, setIsImporting] = useState(false);
     const [syncUrl, setSyncUrl] = useState('https://iptv-org.github.io/iptv/index.m3u');
     const [isSyncing, setIsSyncing] = useState(false);
-    const [playlists, setPlaylists] = useState<any[]>([]);
+
+    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [epgSources, setEpgSources] = useState<EPGSource[]>([]);
+    const [isEpgSyncing, setIsEpgSyncing] = useState(false);
 
     // Add Channel State
     const [newChannel, setNewChannel] = useState<Partial<Channel>>({
         name: '', url: '', logo: '', group: 'General', type: 'hls', is_public: false, country: 'Unknown', description: ''
     });
 
+    // Filters & IPTV Org Data
+    const [filterCountry, setFilterCountry] = useState('');
+    const [filterGroup, setFilterGroup] = useState('');
+    const [iptvCountries, setIptvCountries] = useState<IPTVCountry[]>([]);
+    const [iptvCategories, setIptvCategories] = useState<IPTVCategory[]>([]);
+
+    useEffect(() => {
+        ApiClient.getIPTVOrgCountries().then(setIptvCountries).catch(() => { });
+        ApiClient.getIPTVOrgCategories().then(setIptvCategories).catch(() => { });
+    }, []);
+
     useEffect(() => {
         loadChannels();
         loadStats();
         loadPlaylists();
+        loadEpgSources();
+
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, search]);
+    }, [page, search, filterCountry, filterGroup]);
 
     const loadStats = async () => {
         try {
@@ -63,22 +104,30 @@ export const AdminDashboard: React.FC = () => {
         try {
             const res = await ApiClient.getPlaylists();
             setPlaylists(res || []);
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to load playlists', e);
             setPlaylists([]);
         }
     };
 
+    const loadEpgSources = async () => {
+        try {
+            const res = await ApiClient.getEPGSources();
+            setEpgSources(res || []);
+        } catch (e: any) {
+            console.error('Failed to load EPG sources', e);
+        }
+    };
+
     const loadChannels = async () => {
         try {
-            const res = await ApiClient.getAllChannelsAdmin(page, 50, search);
-            setChannels(res.data || []);
+            const res = await ApiClient.getAllChannelsAdmin(page, 50, search, filterCountry, filterGroup);
+            setChannels(res.data);
             setTotal(res.total);
             setTotalPages(res.totalPages);
-            setSelectedIds(new Set()); // Reset selection on page change
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            if ((e as Error).message === 'Invalid credentials' || (e as { status?: number }).status === 401) {
+            if (e.message === 'Invalid credentials' || e.status === 401) {
                 handleLogout();
             }
         }
@@ -145,7 +194,7 @@ export const AdminDashboard: React.FC = () => {
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            const res = await ApiClient.syncPlaylist(syncUrl);
+            const res = await ApiClient.syncPlaylist();
             alert(res.message);
             loadChannels();
             loadStats();
@@ -153,6 +202,19 @@ export const AdminDashboard: React.FC = () => {
             alert('Sync failed');
         } finally {
             setIsSyncing(false);
+        }
+    };
+
+    const handleEpgSync = async () => {
+        setIsEpgSyncing(true);
+        try {
+            const res = await ApiClient.syncEPG();
+            alert(res.message);
+            loadEpgSources();
+        } catch {
+            alert('EPG Sync failed');
+        } finally {
+            setIsEpgSyncing(false);
         }
     };
 
@@ -196,7 +258,7 @@ export const AdminDashboard: React.FC = () => {
     };
 
     // --- Components ---
-    const StatCard = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: number, color: string }) => (
+    const StatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: number, color: string }) => (
         <div className="bg-white/5 border border-white/10 backdrop-blur-xl p-6 rounded-2xl flex items-center gap-4 hover:bg-white/10 transition-colors">
             <div className={clsx("w-12 h-12 rounded-full flex items-center justify-center bg-opacity-20", color)}>
                 <Icon size={24} className={color.replace('/20', '').replace('bg-', 'text-')} />
@@ -312,6 +374,29 @@ export const AdminDashboard: React.FC = () => {
                                         </button>
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="flex gap-4 mb-4">
+                                <select
+                                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500 text-sm"
+                                    value={filterCountry}
+                                    onChange={(e) => { setFilterCountry(e.target.value); setPage(1); }}
+                                >
+                                    <option value="">All Countries</option>
+                                    {iptvCountries.map((c: IPTVCountry) => (
+                                        <option key={c.code} value={c.code}>{c.name}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500 text-sm"
+                                    value={filterGroup}
+                                    onChange={(e) => { setFilterGroup(e.target.value); setPage(1); }}
+                                >
+                                    <option value="">All Groups</option>
+                                    {uniqueGroups.map(g => (
+                                        <option key={g} value={g}>{g}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="relative group">
@@ -513,6 +598,7 @@ export const AdminDashboard: React.FC = () => {
 
                             <div className="bg-white/5 p-8 rounded-2xl border border-white/10 backdrop-blur-xl shadow-xl space-y-6">
                                 <div>
+
                                     <h3 className="text-xl font-semibold">Sync Configuration</h3>
                                     <p className="text-sm text-gray-400 mt-1">Manage where your channel list syncs from.</p>
                                 </div>
@@ -561,73 +647,256 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                     )}
                     {activeTab === 'sources' && (
-                        <div className="space-y-6">
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-2xl font-bold">Manage Sources</h2>
+                                <div>
+                                    <h2 className="text-3xl font-bold">Source Management</h2>
+                                    <p className="text-gray-400 mt-2">Manage your channel playlists and sync sources.</p>
+                                </div>
                                 <button
                                     onClick={handleSync}
                                     disabled={isSyncing}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/20"
                                 >
                                     <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
                                     {isSyncing ? 'Syncing All...' : 'Sync All Sources'}
                                 </button>
                             </div>
 
-                            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6">
-                                <h3 className="tex-lg font-bold mb-4 flex items-center gap-2"><Plus size={18} /> Add New Source</h3>
-                                <form onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    const form = e.target as HTMLFormElement;
-                                    const name = (form.elements.namedItem('name') as HTMLInputElement).value;
-                                    const url = (form.elements.namedItem('url') as HTMLInputElement).value;
-                                    if (name && url) {
-                                        try {
-                                            await ApiClient.addPlaylist(name, url);
-                                            loadPlaylists();
-                                            form.reset();
-                                        } catch { alert('Failed to add source'); }
-                                    }
-                                }} className="flex gap-4">
-                                    <input name="name" placeholder="Source Name (e.g. IPTV Org)" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500" required />
-                                    <input name="url" placeholder="M3U URL" className="flex-[2] bg-white/5 border border-white/10 rounded-xl px-4 py-2 outline-none focus:border-blue-500" required />
-                                    <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition-colors">Add</button>
-                                </form>
-                            </div>
-
-                            <div className="grid gap-4">
-                                {Array.isArray(playlists) && playlists.map((pl: any) => (
-                                    <div key={pl.id} className="bg-[#0a0a0a] border border-white/10 rounded-xl p-4 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="font-bold text-lg">{pl.name}</h4>
-                                            <p className="text-sm text-gray-500 truncate max-w-md">{pl.url}</p>
-                                            <p className="text-xs text-gray-600 mt-1">Last Synced: {pl.last_synced || 'Never'}</p>
-                                        </div>
-                                        <div className="flex items-center gap-2">
+                            {/* IPTV-Org Browser */}
+                            <div className="bg-gradient-to-br from-blue-900/10 to-purple-900/10 border border-white/10 rounded-2xl p-8 backdrop-blur-xl">
+                                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                                    <Globe className="text-blue-400" /> Browse IPTV-Org Directory
+                                </h3>
+                                <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="bg-black/20 p-6 rounded-xl border border-white/5">
+                                        <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider text-gray-400">By Country</h4>
+                                        <div className="flex gap-2">
+                                            <select
+                                                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-blue-500"
+                                                id="browser-country"
+                                            >
+                                                <option value="">Select Country</option>
+                                                {iptvCountries.map((c: IPTVCountry) => (
+                                                    <option key={c.code} value={c.code}>{c.name}</option>
+                                                ))}
+                                            </select>
                                             <button
                                                 onClick={async () => {
-                                                    if (confirm('Delete this source? Channels synced from here might remain until manually deleted.')) {
-                                                        await ApiClient.deletePlaylist(pl.id);
+                                                    const select = document.getElementById('browser-country') as HTMLSelectElement;
+                                                    const code = select.value;
+                                                    const name = select.options[select.selectedIndex].text;
+                                                    if (!code) return;
+                                                    const url = `https://iptv-org.github.io/iptv/countries/${code.toLowerCase()}.m3u`;
+                                                    try {
+                                                        await ApiClient.addPlaylist(`${name} Channels`, url);
                                                         loadPlaylists();
-                                                    }
+                                                        alert(`Added ${name} source`);
+                                                    } catch { alert('Failed to add source'); }
                                                 }}
-                                                className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                                                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold"
                                             >
-                                                <Trash2 size={18} />
+                                                Add
                                             </button>
                                         </div>
                                     </div>
-                                ))}
-                                {(!Array.isArray(playlists) || playlists.length === 0) && (
-                                    <div className="text-center py-10 text-gray-500">
-                                        No sources added. Add a playlist URL to start syncing channels.
+                                    <div className="bg-black/20 p-6 rounded-xl border border-white/5">
+                                        <h4 className="font-semibold mb-3 text-sm uppercase tracking-wider text-gray-400">By Category</h4>
+                                        <div className="flex gap-2">
+                                            <select
+                                                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-4 py-2 outline-none focus:border-blue-500"
+                                                id="browser-category"
+                                            >
+                                                <option value="">Select Category</option>
+                                                {iptvCategories.map((c: IPTVCategory) => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={async () => {
+                                                    const select = document.getElementById('browser-category') as HTMLSelectElement;
+                                                    const id = select.value;
+                                                    const name = select.options[select.selectedIndex].text;
+                                                    if (!id) return;
+                                                    const url = `https://iptv-org.github.io/iptv/categories/${id.toLowerCase()}.m3u`;
+                                                    try {
+                                                        await ApiClient.addPlaylist(`${name} Channels`, url);
+                                                        loadPlaylists();
+                                                        alert(`Added ${name} source`);
+                                                    } catch { alert('Failed to add source'); }
+                                                }}
+                                                className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-bold"
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
                                     </div>
-                                )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-xl font-bold flex items-center gap-2">
+                                    <Settings className="text-gray-400" /> Active Sources
+                                </h3>
+
+                                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6">
+                                    <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider">Add Custom Source</h4>
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const form = e.target as HTMLFormElement;
+                                        const name = (form.elements.namedItem('name') as HTMLInputElement).value;
+                                        const url = (form.elements.namedItem('url') as HTMLInputElement).value;
+                                        if (name && url) {
+                                            try {
+                                                await ApiClient.addPlaylist(name, url);
+                                                loadPlaylists();
+                                                form.reset();
+                                            } catch { alert('Failed to add source'); }
+                                        }
+                                    }} className="flex gap-4">
+                                        <input name="name" placeholder="Source Name" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500" required />
+                                        <input name="url" placeholder="M3U URL" className="flex-[2] bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-blue-500" required />
+                                        <button type="submit" className="px-8 py-3 bg-green-600 hover:bg-green-500 rounded-xl font-bold transition-colors">Add Custom</button>
+                                    </form>
+                                </div>
+
+                                <div className="grid gap-4">
+                                    {Array.isArray(playlists) && playlists.map((pl: Playlist) => (
+                                        <div key={pl.id} className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 flex items-center justify-between group hover:border-white/20 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                                                    <Signal size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-white">{pl.name}</h4>
+                                                    <p className="text-sm text-gray-500 truncate max-w-md font-mono">{pl.url}</p>
+                                                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                                                        <span className="flex items-center gap-1"><RefreshCw size={10} /> Synced: {pl.last_synced ? new Date(pl.last_synced).toLocaleDateString() : 'Never'}</span>
+                                                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5">{pl.channel_count || 0} Channels</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            alert(`Syncing ${pl.name}...`);
+                                                            await ApiClient.syncPlaylist(pl.url);
+                                                            alert(`${pl.name} Synced!`);
+                                                            loadPlaylists();
+                                                        } catch (e) { alert('Sync failed'); }
+                                                    }}
+                                                    className="p-3 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-xl transition-colors hover:scale-105 transform"
+                                                    title="Sync Source"
+                                                >
+                                                    <RefreshCw size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm('Delete this source? Channels synced from here might remain until manually deleted.')) {
+                                                            await ApiClient.deletePlaylist(pl.id);
+                                                            loadPlaylists();
+                                                        }
+                                                    }}
+                                                    className="p-3 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl transition-colors hover:scale-105 transform"
+                                                    title="Delete Source"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {(!Array.isArray(playlists) || playlists.length === 0) && (
+                                        <div className="text-center py-16 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+                                            <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-600">
+                                                <Upload size={32} />
+                                            </div>
+                                            <p className="text-gray-400 font-medium">No sources added yet</p>
+                                            <p className="text-sm text-gray-600 mt-1">Add a country or category above to get started</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+
+                            {/* EPG Sources Section */}
+                            <div className="space-y-4 pt-8 border-t border-white/10">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-xl font-bold flex items-center gap-2">
+                                        <Activity className="text-purple-400" /> EPG Sources
+                                    </h3>
+                                    <button
+                                        onClick={handleEpgSync}
+                                        disabled={isEpgSyncing}
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50 text-sm"
+                                    >
+                                        <RefreshCw size={16} className={isEpgSyncing ? "animate-spin" : ""} />
+                                        {isEpgSyncing ? 'Syncing EPG...' : 'Sync EPG Now'}
+                                    </button>
+                                </div>
+
+                                <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6">
+                                    <form onSubmit={async (e) => {
+                                        e.preventDefault();
+                                        const form = e.target as HTMLFormElement;
+                                        const name = (form.elements.namedItem('epgName') as HTMLInputElement).value;
+                                        const url = (form.elements.namedItem('epgUrl') as HTMLInputElement).value;
+                                        if (name && url) {
+                                            try {
+                                                await ApiClient.addEPGSource(name, url);
+                                                loadEpgSources();
+                                                form.reset();
+                                            } catch { alert('Failed to add EPG source'); }
+                                        }
+                                    }} className="flex gap-4">
+                                        <input name="epgName" placeholder="EPG Source Name (e.g. US Guide)" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500" required />
+                                        <input name="epgUrl" placeholder="XMLTV URL" className="flex-[2] bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-purple-500" required />
+                                        <button type="submit" className="px-6 py-3 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold transition-colors">Add</button>
+                                    </form>
+                                </div>
+
+                                <div className="grid gap-4">
+                                    {epgSources.map((epg) => (
+                                        <div key={epg.id} className="bg-[#0a0a0a] border border-white/10 rounded-xl p-6 flex items-center justify-between group hover:border-white/20 transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                                                    <Activity size={20} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-white">{epg.name}</h4>
+                                                    <p className="text-sm text-gray-500 truncate max-w-md font-mono">{epg.url}</p>
+                                                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+                                                        <span className="flex items-center gap-1"><RefreshCw size={10} /> Synced: {epg.last_synced ? new Date(epg.last_synced).toLocaleDateString() : 'Never'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={async () => {
+                                                        if (confirm('Delete this EPG source?')) {
+                                                            await ApiClient.deleteEPGSource(epg.id);
+                                                            loadEpgSources();
+                                                        }
+                                                    }}
+                                                    className="p-3 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl transition-colors hover:scale-105 transform"
+                                                    title="Delete EPG Source"
+                                                >
+                                                    <Trash2 size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {epgSources.length === 0 && (
+                                        <div className="text-center py-8 bg-white/5 rounded-2xl border border-white/5 border-dashed">
+                                            <p className="text-gray-400 font-medium">No EPG sources added</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
