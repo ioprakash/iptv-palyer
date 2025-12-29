@@ -186,6 +186,11 @@ export const FeaturedChannelsAdmin: FC = () => {
                                 <span className={`px-2 py-0.5 rounded-full ${getTypeColor(channel.type)} text-black font-bold uppercase`}>
                                     {channel.type}
                                 </span>
+                                {channel.is_n8n_live && (
+                                    <span className="px-2 py-0.5 rounded-full bg-red-600/80 text-white font-bold uppercase text-[10px]">
+                                        N8N LIVE
+                                    </span>
+                                )}
                                 <span className="truncate">{channel.url}</span>
                             </div>
                         </div>
@@ -210,13 +215,15 @@ export const FeaturedChannelsAdmin: FC = () => {
                     </div>
                 ))}
 
+                {/* Visual Separator for Regular items if any N8N items exist? No, user wanted them managed together */}
+
                 {channels.length === 0 && !isEditing && (
                     <div className="text-center py-12 text-gray-500 bg-[#1a1a1a]/50 rounded-xl border border-white/5 border-dashed">
                         <p>No featured channels added yet.</p>
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

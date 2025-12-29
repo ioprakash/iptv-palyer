@@ -478,23 +478,19 @@ app.get('/api/featured-channels', async (req, res) => {
     try {
         const db = await dbPromise;
 
-        // Fetch N8N Live Stream (if active)
-        const n8nStream = await db.get('SELECT * FROM n8n_live_streams WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1');
+        // Fetch N8N Live Streams (if active)
+        const n8nStreams = await db.all('SELECT * FROM n8n_live_streams WHERE is_active = 1 ORDER BY updated_at DESC');
 
         // Fetch Regular Featured Channels
         const channels = await db.all('SELECT * FROM featured_channels WHERE is_active = 1 ORDER BY sort_order ASC, added_at DESC');
 
-        if (n8nStream) {
-            // Prepend N8N stream with a special flag
-            const liveStream = {
-                ...n8nStream,
-                id: 'n8n-live', // Fixed ID or use existing to identify on frontend
-                is_n8n_live: true
-            };
-            res.json([liveStream, ...channels]);
-        } else {
-            res.json(channels);
-        }
+        const liveStreams = n8nStreams.map(stream => ({
+            ...stream,
+            // Keep original ID (n8n-stream-X)
+            is_n8n_live: true
+        }));
+
+        res.json([...liveStreams, ...channels]);
     } catch (error) {
         res.status(500).json({ error: 'Database error' });
     }
@@ -502,18 +498,19 @@ app.get('/api/featured-channels', async (req, res) => {
 
 // N8N/Webhook Endpoint to Update Live Stream
 app.post('/api/n8n/live', async (req, res) => {
-    const { title, url, type = 'hls', thumbnail = '', is_active = true } = req.body;
+    const { id: reqId, title, url, type = 'hls', thumbnail = '', is_active = true } = req.body;
 
-    // Simple authentication (optional, but recommended)
-    // const authHeader = req.headers['authorization'];
-    // if (authHeader !== 'Bearer YOUR_SECRET_TOKEN') return res.status(401).json({ error: 'Unauthorized' });
+    // Default to slot 1 if no ID provided. Support IDs 1-10.
+    const slotId = reqId ? parseInt(reqId) : 1;
+    if (isNaN(slotId) || slotId < 1 || slotId > 10) {
+        return res.status(400).json({ error: 'Valid ID (1-10) is required' });
+    }
 
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     try {
         const db = await dbPromise;
-        // Upsert the single N8N live stream entry (we keep only one 'latest' or use a fixed ID)
-        const id = 'n8n-stream-1';
+        const dbId = `n8n-stream-${slotId}`;
 
         await db.run(`
             INSERT INTO n8n_live_streams (id, title, url, type, thumbnail, is_active, updated_at)
@@ -525,9 +522,9 @@ app.post('/api/n8n/live', async (req, res) => {
             thumbnail = excluded.thumbnail,
             is_active = excluded.is_active,
             updated_at = CURRENT_TIMESTAMP
-        `, [id, title || 'Live Event', url, type, thumbnail, is_active ? 1 : 0]);
+        `, [dbId, title || `Live Stream ${slotId}`, url, type, thumbnail, is_active ? 1 : 0]);
 
-        res.json({ success: true, message: 'Live stream updated' });
+        res.json({ success: true, message: `Live stream slot ${slotId} updated` });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Database error' });
@@ -539,7 +536,12 @@ app.get('/api/admin/featured-channels', async (req, res) => {
     try {
         const db = await dbPromise;
         const channels = await db.all('SELECT * FROM featured_channels ORDER BY sort_order ASC, added_at DESC');
-        res.json(channels);
+        const n8nStreams = await db.all('SELECT * FROM n8n_live_streams ORDER BY id ASC');
+
+        // Mark N8N streams for Admin UI
+        const mappedN8n = n8nStreams.map(s => ({ ...s, is_n8n_live: true }));
+
+        res.json([...mappedN8n, ...channels]);
     } catch (error) {
         res.status(500).json({ error: 'Database error' });
     }
@@ -572,6 +574,18 @@ app.put('/api/admin/featured-channels/:id', async (req, res) => {
 
     try {
         const db = await dbPromise;
+
+        // Check if it's an N8N stream
+        if (id.startsWith('n8n-stream-')) {
+            await db.run(
+                `UPDATE n8n_live_streams 
+                 SET title = ?, type = ?, url = ?, thumbnail = ?, is_active = ?
+                 WHERE id = ?`,
+                [title, type, url, thumbnail, is_active ? 1 : 0, id]
+            );
+            return res.json({ message: 'N8N stream updated' });
+        }
+
         await db.run(
             `UPDATE featured_channels 
              SET title = ?, type = ?, url = ?, thumbnail = ?, sort_order = ?, is_active = ?
@@ -590,6 +604,10 @@ app.delete('/api/admin/featured-channels/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const db = await dbPromise;
+        if (id.startsWith('n8n-stream-')) {
+            await db.run('DELETE FROM n8n_live_streams WHERE id = ?', [id]);
+            return res.json({ message: 'N8N stream deleted' });
+        }
         await db.run('DELETE FROM featured_channels WHERE id = ?', [id]);
         res.json({ message: 'Featured channel deleted' });
     } catch (error) {
