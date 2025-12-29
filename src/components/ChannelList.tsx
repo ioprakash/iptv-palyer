@@ -156,7 +156,7 @@ export const ChannelList: React.FC<ChannelListProps> = ({ channels, selectedChan
                     <Virtuoso
                         style={{ height: '100%' }}
                         data={filteredChannels}
-                        itemContent={(index, channel) => (
+                        itemContent={(_index, channel) => (
                             <ChannelRow
                                 channel={channel}
                                 isSelected={selectedChannel?.id === channel.id}

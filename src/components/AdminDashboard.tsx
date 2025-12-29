@@ -10,6 +10,7 @@ import {
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { ChannelStatusBadge } from './ChannelStatusBadge';
+import { FeaturedChannelsAdmin } from './FeaturedChannelsAdmin';
 
 interface IPTVCountry {
     code: string;
@@ -38,7 +39,7 @@ interface EPGSource {
 
 export const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'overview' | 'channels' | 'import' | 'settings' | 'sources'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'channels' | 'featured' | 'import' | 'settings' | 'sources'>('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Data State
@@ -308,6 +309,7 @@ export const AdminDashboard: React.FC = () => {
                     <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Menu</p>
                     <SidebarItem id="overview" icon={LayoutDashboard} label="Overview" />
                     <SidebarItem id="channels" icon={Tv} label="Channels" />
+                    <SidebarItem id="featured" icon={Star} label="Featured Playlist" />
                     <SidebarItem id="sources" icon={Settings} label="Sources" />
                     <SidebarItem id="import" icon={Upload} label="Direct Import" />
                     <SidebarItem id="settings" icon={Settings} label="Settings" />
@@ -589,6 +591,12 @@ export const AdminDashboard: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'featured' && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <FeaturedChannelsAdmin />
                         </div>
                     )}
 

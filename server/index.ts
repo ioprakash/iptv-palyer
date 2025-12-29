@@ -76,6 +76,22 @@ import { syncEPGSource } from './epgSyncer';
         await db.run("CREATE INDEX IF NOT EXISTS idx_program_tvg_start ON program_guide(tvg_id, start)");
         console.log("Ensured 'program_guide' table exists");
     } catch (e) { console.error("Error creating program_guide", e); }
+
+    try {
+        await db.run(`
+            CREATE TABLE IF NOT EXISTS featured_channels (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                type TEXT,
+                url TEXT,
+                thumbnail TEXT,
+                sort_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT 1,
+                added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log("Ensured 'featured_channels' table exists");
+    } catch (e) { console.error("Error creating featured_channels", e); }
 })();
 
 const app = express();
@@ -440,6 +456,83 @@ app.get('/api/admin/iptv-org/categories', async (req, res) => {
     }
 });
 
+// FEATURED CHANNELS (Landing Page Playlist)
+
+// GET Public Featured Channels (Ordered)
+app.get('/api/featured-channels', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const channels = await db.all('SELECT * FROM featured_channels WHERE is_active = 1 ORDER BY sort_order ASC, added_at DESC');
+        res.json(channels);
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: Get All Featured Channels
+app.get('/api/admin/featured-channels', async (req, res) => {
+    try {
+        const db = await dbPromise;
+        const channels = await db.all('SELECT * FROM featured_channels ORDER BY sort_order ASC, added_at DESC');
+        res.json(channels);
+    } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// ADMIN: Add Featured Channel
+app.post('/api/admin/featured-channels', async (req, res) => {
+    const { title, type, url, thumbnail, sort_order, is_active } = req.body;
+    if (!title || !url || !type) return res.status(400).json({ error: 'Title, URL, and Type are required' });
+
+    const id = randomUUID();
+    try {
+        const db = await dbPromise;
+        await db.run(
+            `INSERT INTO featured_channels (id, title, type, url, thumbnail, sort_order, is_active) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [id, title, type, url, thumbnail || '', sort_order || 0, is_active ? 1 : 0]
+        );
+        res.json({ message: 'Featured channel added', id });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to add featured channel' });
+    }
+});
+
+// ADMIN: Update Featured Channel
+app.put('/api/admin/featured-channels/:id', async (req, res) => {
+    const { id } = req.params;
+    const { title, type, url, thumbnail, sort_order, is_active } = req.body;
+
+    try {
+        const db = await dbPromise;
+        await db.run(
+            `UPDATE featured_channels 
+             SET title = ?, type = ?, url = ?, thumbnail = ?, sort_order = ?, is_active = ?
+             WHERE id = ?`,
+            [title, type, url, thumbnail, sort_order, is_active ? 1 : 0, id]
+        );
+        res.json({ message: 'Featured channel updated' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to update featured channel' });
+    }
+});
+
+// ADMIN: Delete Featured Channel
+app.delete('/api/admin/featured-channels/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const db = await dbPromise;
+        await db.run('DELETE FROM featured_channels WHERE id = ?', [id]);
+        res.json({ message: 'Featured channel deleted' });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to delete featured channel' });
+    }
+});
+
+
 // ADMIN: EPG Source Management
 app.get('/api/admin/epg/sources', async (req, res) => {
     try {
@@ -503,9 +596,9 @@ const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // SPA Fallback
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+// app.get('*', (req, res) => {
+//     res.sendFile(path.join(__dirname, '../dist/index.html'));
+// });
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {

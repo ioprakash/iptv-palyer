@@ -1,4 +1,5 @@
-import { Channel } from '../utils/m3uParser';
+import type { Channel } from '../utils/m3uParser';
+import type { FeaturedChannel } from '../types';
 
 const API_Base = '/api';
 
@@ -157,5 +158,43 @@ export const ApiClient = {
     getIPTVOrgCategories: async () => {
         const res = await fetch(`${API_Base}/admin/iptv-org/categories`);
         return res.json();
+    },
+
+    // FEATURED CHANNELS (Playlist Management)
+    getFeaturedChannels: async (): Promise<FeaturedChannel[]> => {
+        const res = await fetch(`${API_Base}/featured-channels`);
+        return res.json();
+    },
+
+    getAllFeaturedChannelsAdmin: async (): Promise<FeaturedChannel[]> => {
+        const res = await fetch(`${API_Base}/admin/featured-channels`);
+        return res.json();
+    },
+
+    addFeaturedChannel: async (channel: Partial<FeaturedChannel>) => {
+        const res = await fetch(`${API_Base}/admin/featured-channels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(channel)
+        });
+        if (!res.ok) throw new Error('Failed to add channel');
+        return res.json();
+    },
+
+    updateFeaturedChannel: async (id: string, channel: Partial<FeaturedChannel>) => {
+        const res = await fetch(`${API_Base}/admin/featured-channels/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(channel)
+        });
+        if (!res.ok) throw new Error('Failed to update channel');
+        return res.json();
+    },
+
+    deleteFeaturedChannel: async (id: string) => {
+        const res = await fetch(`${API_Base}/admin/featured-channels/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to delete channel');
+        return res.json();
     }
 };
+

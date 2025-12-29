@@ -32,7 +32,7 @@ export const useChannelStatus = (url: string) => {
                     setStatus('offline');
                 }
             } catch (error: unknown) {
-                if (error.name === 'AbortError') return;
+                if (error instanceof Error && error.name === 'AbortError') return;
                 console.warn(`Check failed for ${url}`, error);
                 setStatus('offline');
             }

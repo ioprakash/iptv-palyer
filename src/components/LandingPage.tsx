@@ -1,12 +1,13 @@
-import React from 'react';
-import { Monitor, Zap, Globe, Shield, Star, Play } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom'; // Added Link, kept useNavigate for now but will remove if not used
+import { useState, useEffect, type FC } from 'react';
+import { Monitor, Zap, Globe, Star, Play } from 'lucide-react';
+import { isMobile } from 'react-device-detect';
+import { Link } from 'react-router-dom'; // Added Link, kept useNavigate for now but will remove if not used
 import { ApiClient } from '../api/client';
-import { Channel } from '../utils/m3uParser';
-import { useEffect, useState } from 'react';
+import type { Channel } from '../utils/m3uParser';
+import { FeaturedPlayer } from './FeaturedPlayer';
 
-export const LandingPage: React.FC = () => {
-    const navigate = useNavigate(); // This will be removed as Link is used instead
+
+export const LandingPage: FC = () => {
 
     const [featured, setFeatured] = useState<Channel[]>([]);
 
@@ -25,8 +26,11 @@ export const LandingPage: React.FC = () => {
                         </div>
                         <span>IPTV<span className="text-blue-500">Player</span></span>
                     </div>
+
                     <div className="flex items-center gap-6">
-                        <Link to="/login" className="text-gray-400 hover:text-white font-medium transition-colors">Admin Login</Link>
+                        {!isMobile && (
+                            <Link to="/login" className="text-gray-400 hover:text-white font-medium transition-colors">Admin Login</Link>
+                        )}
                         <Link to="/app" className="bg-white text-black px-6 py-2.5 rounded-full font-bold hover:bg-gray-200 transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                             Open Web Player
                         </Link>
@@ -49,40 +53,30 @@ export const LandingPage: React.FC = () => {
                             Next Generation <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-400 to-purple-500">IPTV Experience</span>
                         </h1>
-                        <p className="text-xl text-gray-400 mb-10 leading-relaxed">
-                            Stream your favorite channels in 4K quality with a modern, lightning-fast web player. No installation required.
-                        </p>
+                        {!isMobile && (
+                            <p className="text-xl text-gray-400 mb-10 leading-relaxed">
+                                Stream your favorite channels in 4K quality with a modern, lightning-fast web player. No installation required.
+                            </p>
+                        )}
                         <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                             <Link to="/app" className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-xl font-bold text-lg shadow-xl shadow-blue-600/20 transition-all transform hover:scale-[1.02] flex items-center justify-center gap-2">
                                 <Play size={20} fill="currentColor" /> Start Watching Now
                             </Link>
-                            <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all backdrop-blur-md">
-                                Manage Playlist
-                            </Link>
+                            {!isMobile && (
+                                <Link to="/login" className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl font-bold text-lg transition-all backdrop-blur-md">
+                                    Manage Playlist
+                                </Link>
+                            )}
                         </div>
                     </div>
 
-                    {/* Right Column: Hero Image */}
-                    <div className="relative hidden lg:block perspective-1000">
+                    {/* Right Column: Hero Image / Player */}
+                    <div className="relative block perspective-1000 w-full mt-12 lg:mt-0">
                         {/* Abstract blobs */}
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-500/20 rounded-full blur-[100px] -z-10" />
 
-                        <div className="relative transform rotate-y-[-5deg] rotate-x-[5deg] hover:rotate-0 transition-transform duration-500 shadow-2xl shadow-blue-500/30 rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a]">
-                            <div className="aspect-video bg-gray-900 relative group cursor-default">
-                                <img
-                                    src="/src/assets/hero_mockup.png"
-                                    className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity"
-                                    alt="App Preview"
-                                />
-                                {/* Overlay gradient */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent opacity-50" />
-
-                                {/* Floating Badge */}
-                                <div className="absolute bottom-6 right-6 px-4 py-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-lg flex items-center gap-3 shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-transform">
-                                    <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                                    <span className="font-mono text-xs text-gray-300">LIVE FEED</span>
-                                </div>
-                            </div>
+                        <div className="relative transform hover:scale-[1.02] transition-transform duration-500">
+                            <FeaturedPlayer />
                         </div>
                     </div>
                 </div>

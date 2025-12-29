@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ApiClient } from '../api/client';
-import { Channel } from '../utils/m3uParser';
+import type { Channel } from '../utils/m3uParser';
 import { ChannelList } from './ChannelList';
 import { ModernPlayer } from './ModernPlayer';
 import { Menu, ArrowLeft, Tv } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { isMobile } from 'react-device-detect';
 
 export const PlayerApp = () => {
     const [channels, setChannels] = useState<Channel[]>([]);
@@ -51,7 +52,7 @@ export const PlayerApp = () => {
     }
 
     return (
-        <div className="flex h-screen bg-black overflow-hidden relative font-sans text-white">
+        <div className="flex h-[100dvh] bg-black overflow-hidden relative font-sans text-white">
             {/* Mobile Header Overlay */}
             <div className="lg:hidden absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between pointer-events-none">
                 <button
@@ -84,9 +85,11 @@ export const PlayerApp = () => {
                             >
                                 <Menu size={20} />
                             </button>
-                            <Link to="/" className="text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors">
-                                <ArrowLeft size={16} className="hidden lg:block" /> Back
-                            </Link>
+                            {!isMobile && (
+                                <Link to="/" className="text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors">
+                                    <ArrowLeft size={16} className="hidden lg:block" /> Back
+                                </Link>
+                            )}
                         </div>
                         <h1 className="font-bold flex items-center gap-2 text-blue-500">
                             <Tv size={20} /> IPTV

@@ -26,6 +26,20 @@ const initDB = async () => {
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_channels_url ON channels(url);
     `);
+
+    await db.exec(`
+        CREATE TABLE IF NOT EXISTS featured_channels (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            type TEXT CHECK(type IN ('hls', 'youtube', 'iframe')),
+            url TEXT,
+            thumbnail TEXT,
+            sort_order INTEGER DEFAULT 0,
+            is_active BOOLEAN DEFAULT 1,
+            added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
     console.log('Database Initialized');
 };
 
