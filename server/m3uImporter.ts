@@ -11,6 +11,7 @@ export interface Channel {
     quality?: 'SD' | 'HD' | 'FHD' | '4K';
     type: 'hls' | 'youtube' | 'iframe';
     is_public: boolean;
+    description?: string;
 }
 
 export const parseM3U = (content: string): Channel[] => {

@@ -61,6 +61,9 @@ export const FeaturedPlayer: React.FC = () => {
                                 ) : (
                                     <ChannelTypeIcon type={channel.type} size={18} />
                                 )}
+                                {index === currentIndex && (
+                                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
                                     </div>
                                 )}
                                 {channel.is_n8n_live && (
@@ -75,8 +78,8 @@ export const FeaturedPlayer: React.FC = () => {
                             </h4>
                         </button>
                     ))}
+                </div>
             </div>
-        </div>
         </div >
     );
 };

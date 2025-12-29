@@ -334,13 +334,13 @@ app.post('/api/admin/sync', async (req, res) => {
                     if (existing) {
                         await db.run(
                             `UPDATE channels SET name = ?, logo = ?, group_title = ?, country = ?, playlist_id = ? WHERE id = ?`,
-                            [channel.name, channel.logo, channel.group, channel.country, playlist.id, existing.id]
+                            [channel.name, channel.logo, channel.group_title, channel.country, playlist.id, existing.id]
                         );
                     } else {
                         await db.run(
                             `INSERT INTO channels (id, name, url, logo, group_title, country, type, is_public, playlist_id)
                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [randomUUID(), channel.name, channel.url, channel.logo, channel.group, channel.country, 'hls', 0, playlist.id]
+                            [randomUUID(), channel.name, channel.url, channel.logo, channel.group_title, channel.country, 'hls', 0, playlist.id]
                         );
                         totalAdded++;
                     }
