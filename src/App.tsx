@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { type ReactElement } from 'react';
-import { isMobile } from 'react-device-detect';
+
 import { LandingPage } from './components/LandingPage';
 import { PlayerApp } from './components/PlayerApp';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -17,7 +17,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={isMobile ? <Navigate to="/app" replace /> : <LandingPage />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/app" element={
           <ErrorBoundary>

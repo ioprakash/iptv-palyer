@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
-import { Monitor, Zap, Globe, Star, Play } from 'lucide-react';
+import { Monitor, Zap, Globe, Play } from 'lucide-react';
 import { isMobile } from 'react-device-detect';
 import { Link } from 'react-router-dom'; // Added Link, kept useNavigate for now but will remove if not used
 import { ApiClient } from '../api/client';
@@ -84,27 +84,27 @@ export const LandingPage: FC = () => {
 
             {/* Featured Channels Section */}
             {featured.length > 0 && (
-                <section className="py-10 border-y border-white/5 bg-white/[0.02]">
-                    <div className="max-w-7xl mx-auto px-6">
-                        <div className="flex items-center gap-3 mb-8">
-                            <Star className="text-yellow-400" fill="currentColor" />
-                            <h2 className="text-2xl font-bold">Featured Channels</h2>
+                <section className="py-8 border-y border-white/5 bg-[#0a0a0a]">
+                    <div className="max-w-7xl mx-auto px-4">
+                        <div className="flex items-center gap-2 mb-6">
+                            <div className="w-2 h-8 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.5)]" />
+                            <h2 className="text-xl md:text-2xl font-bold text-white tracking-wide uppercase">Live Stream</h2>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                             {featured.map(channel => (
-                                <Link to={`/app?channelId=${channel.id}`} key={channel.id} className="group bg-white/5 border border-white/10 p-4 rounded-xl hover:bg-white/10 transition-all hover:scale-105 block">
-                                    <div className="aspect-video bg-black/40 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden">
+                                <Link
+                                    to={`/app?channelId=${channel.id}`}
+                                    key={channel.id}
+                                    className="group relative bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 p-2.5 rounded-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-500/20 flex flex-col items-center gap-2"
+                                >
+                                    <div className="w-10 h-10 rounded-md bg-black/40 flex items-center justify-center relative overflow-hidden flex-shrink-0 group-hover:bg-white/20 transition-colors">
                                         {channel.logo ? (
-                                            <img src={channel.logo} className="w-full h-full object-contain p-2" alt={channel.name} />
+                                            <img src={channel.logo} className="w-full h-full object-contain p-1" alt={channel.name} />
                                         ) : (
-                                            <span className="text-2xl font-bold text-gray-600">{channel.name.substring(0, 2)}</span>
+                                            <span className="text-xs font-bold text-gray-500 group-hover:text-white">{channel.name.substring(0, 2)}</span>
                                         )}
-                                        <div className="absolute inset-0 bg-blue-600/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Play className="fill-white text-white drop-shadow-lg" size={32} />
-                                        </div>
                                     </div>
-                                    <h3 className="font-bold text-sm truncate group-hover:text-blue-400 transition-colors">{channel.name}</h3>
-                                    <p className="text-xs text-gray-500">{channel.group}</p>
+                                    <h3 className="font-bold text-xs md:text-sm text-gray-200 group-hover:text-white text-center w-full truncate tracking-tight">{channel.name}</h3>
                                 </Link>
                             ))}
                         </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ApiClient } from '../api/client';
 import { type FeaturedChannel } from '../types';
 import { Player } from './Player';
-import { Youtube, Globe, Monitor, List } from 'lucide-react';
+import { Youtube, Globe, Monitor } from 'lucide-react';
 
 export const FeaturedPlayer: React.FC = () => {
     const [channels, setChannels] = useState<FeaturedChannel[]>([]);
@@ -35,52 +35,49 @@ export const FeaturedPlayer: React.FC = () => {
             </div>
 
             {/* Playlist Controller */}
-            <div className="bg-[#0a0a0a] border-t border-white/10">
-                <div className="p-4 border-b border-white/5 flex items-center gap-3">
-                    <List className="text-blue-500" size={20} />
-                    <h3 className="font-bold text-white text-sm uppercase tracking-wider">Featured Playlist</h3>
+            <div className="bg-[#0a0a0a] border-t border-white/10 p-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1.5 h-6 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
+                    <h3 className="font-bold text-white text-sm uppercase tracking-wider">
+                        {currentChannel?.is_n8n_live ? <span className="text-red-500 animate-pulse">LIVE EVENT</span> : 'Live Stream'}
+                    </h3>
                 </div>
 
-                <div className="flex overflow-x-auto p-4 gap-4 scrollbar-hide">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                     {channels.map((channel, index) => (
                         <button
                             key={channel.id}
                             onClick={() => setCurrentIndex(index)}
                             className={`
-                                flex-shrink-0 w-40 p-3 rounded-xl border transition-all text-left group
+                                group relative p-2 rounded-lg border transition-all duration-300 flex flex-col items-center gap-2 hover:-translate-y-0.5
                                 ${index === currentIndex
-                                    ? 'bg-blue-600/10 border-blue-500/50 ring-1 ring-blue-500/20'
+                                    ? 'bg-blue-600/20 border-blue-500/50 shadow-lg shadow-blue-500/10'
                                     : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}
                             `}
                         >
-                            <div className="aspect-video rounded-lg bg-black/50 mb-3 overflow-hidden relative border border-white/5">
+                            <div className="w-10 h-10 rounded-md bg-black/40 flex items-center justify-center relative overflow-hidden flex-shrink-0 group-hover:bg-white/20 transition-colors">
                                 {channel.thumbnail ? (
-                                    <img src={channel.thumbnail} className="w-full h-full object-cover" alt={channel.title} />
+                                    <img src={channel.thumbnail} className="w-full h-full object-contain p-1" alt={channel.title} />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <ChannelTypeIcon type={channel.type} size={24} />
+                                    <ChannelTypeIcon type={channel.type} size={18} />
+                                )}
                                     </div>
                                 )}
-                                {index === currentIndex && (
-                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse box-content border-2 border-black" />
+                                {channel.is_n8n_live && (
+                                    <div className="absolute top-0 right-0 p-0.5 bg-red-600 text-[8px] font-bold text-white rounded-bl-sm">
+                                        LIVE
                                     </div>
                                 )}
                             </div>
-                            <div className="space-y-1">
-                                <h4 className={`font-bold text-xs truncate ${index === currentIndex ? 'text-blue-400' : 'text-gray-300 group-hover:text-white'}`}>
-                                    {channel.title}
-                                </h4>
-                                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 uppercase font-bold tracking-wider">
-                                    <ChannelTypeIcon type={channel.type} size={10} />
-                                    {channel.type}
-                                </div>
-                            </div>
+
+                            <h4 className={`font-bold text-xs text-center w-full truncate ${index === currentIndex ? 'text-blue-400' : 'text-gray-300 group-hover:text-white'}`}>
+                                {channel.title}
+                            </h4>
                         </button>
                     ))}
-                </div>
             </div>
         </div>
+        </div >
     );
 };
 

@@ -7,4 +7,5 @@ export interface FeaturedChannel {
     sort_order: number;
     is_active: boolean;
     added_at?: string;
+    is_n8n_live?: boolean;
 }

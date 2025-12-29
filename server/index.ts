@@ -92,6 +92,21 @@ import { syncEPGSource } from './epgSyncer';
         `);
         console.log("Ensured 'featured_channels' table exists");
     } catch (e) { console.error("Error creating featured_channels", e); }
+
+    try {
+        await db.run(`
+            CREATE TABLE IF NOT EXISTS n8n_live_streams (
+                id TEXT PRIMARY KEY,
+                title TEXT,
+                type TEXT,
+                url TEXT,
+                thumbnail TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        console.log("Ensured 'n8n_live_streams' table exists");
+    } catch (e) { console.error("Error creating n8n_live_streams", e); }
 })();
 
 const app = express();
@@ -462,9 +477,59 @@ app.get('/api/admin/iptv-org/categories', async (req, res) => {
 app.get('/api/featured-channels', async (req, res) => {
     try {
         const db = await dbPromise;
+
+        // Fetch N8N Live Stream (if active)
+        const n8nStream = await db.get('SELECT * FROM n8n_live_streams WHERE is_active = 1 ORDER BY updated_at DESC LIMIT 1');
+
+        // Fetch Regular Featured Channels
         const channels = await db.all('SELECT * FROM featured_channels WHERE is_active = 1 ORDER BY sort_order ASC, added_at DESC');
-        res.json(channels);
+
+        if (n8nStream) {
+            // Prepend N8N stream with a special flag
+            const liveStream = {
+                ...n8nStream,
+                id: 'n8n-live', // Fixed ID or use existing to identify on frontend
+                is_n8n_live: true
+            };
+            res.json([liveStream, ...channels]);
+        } else {
+            res.json(channels);
+        }
     } catch (error) {
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// N8N/Webhook Endpoint to Update Live Stream
+app.post('/api/n8n/live', async (req, res) => {
+    const { title, url, type = 'hls', thumbnail = '', is_active = true } = req.body;
+
+    // Simple authentication (optional, but recommended)
+    // const authHeader = req.headers['authorization'];
+    // if (authHeader !== 'Bearer YOUR_SECRET_TOKEN') return res.status(401).json({ error: 'Unauthorized' });
+
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    try {
+        const db = await dbPromise;
+        // Upsert the single N8N live stream entry (we keep only one 'latest' or use a fixed ID)
+        const id = 'n8n-stream-1';
+
+        await db.run(`
+            INSERT INTO n8n_live_streams (id, title, url, type, thumbnail, is_active, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            url = excluded.url,
+            type = excluded.type,
+            thumbnail = excluded.thumbnail,
+            is_active = excluded.is_active,
+            updated_at = CURRENT_TIMESTAMP
+        `, [id, title || 'Live Event', url, type, thumbnail, is_active ? 1 : 0]);
+
+        res.json({ success: true, message: 'Live stream updated' });
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ error: 'Database error' });
     }
 });
