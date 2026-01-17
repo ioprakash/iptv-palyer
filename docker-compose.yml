@@ -2,10 +2,20 @@ services:
   iptv-player:
     build: .
     container_name: iptv-player
+
+    # Web Application Port Mapping
+    # External:Internal - Access via http://localhost:3000 or http://SERVER_IP:3000
     ports:
-      - "3000:3001"
+      - "3000:3001" # Web server port (3000 on host → 3001 in container)
+
     restart: always
+
+    # Database Persistence
+    # SQLite database file: channels.db
+    # Location in container: /app/server/channels.db
     volumes:
-      - ./data:/app/server/db # Persist SQLite DB
+      - ./data:/app/server # Persist entire server directory (includes channels.db)
+
     environment:
-      - PORT=3001
+      - NODE_ENV=production
+      - PORT=3001 # Internal web server port
