@@ -15,6 +15,16 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Design System Variables */
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-bg-dark: #050505;
+  --color-bg-darker: #0a0a0a;
+  --color-bg-card: #121212;
+  --color-border: rgba(255, 255, 255, 0.05);
+  --color-text-primary: rgba(255, 255, 255, 0.87);
+  --color-text-secondary: rgba(255, 255, 255, 0.6);
 }
 
 body {
@@ -23,8 +33,10 @@ body {
   min-height: 100vh;
 }
 
+/* Custom Scrollbar Styling */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -34,8 +46,15 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #333; 
   border-radius: 4px;
+  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #444; 
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 #1a1a1a;
 }
