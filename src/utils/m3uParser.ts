@@ -8,7 +8,7 @@ export interface Channel {
     description?: string;
     language?: string;
     quality?: 'SD' | 'HD' | 'FHD' | '4K';
-    type?: 'hls' | 'youtube' | 'iframe';
+    type?: 'hls' | 'youtube' | 'iframe' | 'external';
     is_public?: boolean;
     is_featured?: boolean; // 0 or 1 in DB, boolean in app
 }

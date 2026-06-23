@@ -17,21 +17,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<ProtectedRoute><LandingPage /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
-        <Route
-          element={
-            <ProtectedRoute>
-              <ErrorBoundary>
-                <Routes>
-                  <Route path="/" element={<LandingPage />} />
-                  <Route path="/app" element={<PlayerApp />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
-                </Routes>
-              </ErrorBoundary>
-            </ProtectedRoute>
-          }
-        />
-        {/* Redirect any other routes to login */}
+        <Route path="/app" element={<ProtectedRoute><PlayerApp /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+        {/* Redirect any other paths to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

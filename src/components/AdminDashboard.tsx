@@ -5,7 +5,7 @@ import {
     LayoutDashboard, Tv, Upload, Settings, LogOut,
     Trash2, Globe, Lock, Search, ChevronLeft, ChevronRight,
     Youtube, Video, Monitor, Repeat, CheckSquare, Square, Menu,
-    Activity, Signal, WifiOff, Star, RefreshCw
+    Activity, Signal, WifiOff, Star, RefreshCw, ExternalLink
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useNavigate } from 'react-router-dom';
@@ -441,6 +441,7 @@ export const AdminDashboard: React.FC = () => {
                                                         {channel.type === 'youtube' && <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-500/10 text-red-500"><Youtube size={16} /></span>}
                                                         {channel.type === 'hls' && <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-500/10 text-blue-500"><Video size={16} /></span>}
                                                         {channel.type === 'iframe' && <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-500/10 text-green-500"><Monitor size={16} /></span>}
+                                                        {channel.type === 'external' && <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500/10 text-cyan-400"><ExternalLink size={16} /></span>}
                                                     </td>
                                                     <td className="p-4">
                                                         <div className="flex items-center gap-3">
@@ -550,11 +551,12 @@ export const AdminDashboard: React.FC = () => {
                                         <select
                                             className="w-full bg-black/40 border border-white/10 focus:border-blue-500 rounded-xl px-4 py-3 outline-none transition-all appearance-none"
                                             value={newChannel.type}
-                                            onChange={e => setNewChannel({ ...newChannel, type: e.target.value as 'hls' | 'youtube' | 'iframe' })}
+                                            onChange={e => setNewChannel({ ...newChannel, type: e.target.value as 'hls' | 'youtube' | 'iframe' | 'external' })}
                                         >
                                             <option value="hls">HLS (m3u8)</option>
                                             <option value="youtube">YouTube</option>
                                             <option value="iframe">Web/Iframe</option>
+                                            <option value="external">External Page</option>
                                         </select>
                                     </div>
                                     <div className="grid md:grid-cols-2 gap-4">
@@ -739,6 +741,35 @@ export const AdminDashboard: React.FC = () => {
                                             </button>
                                         </div>
                                     </div>
+                                </div>
+                                <div className="mt-6 bg-black/20 p-6 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                    <div>
+                                        <h4 className="font-semibold text-sm uppercase tracking-wider text-gray-400 mb-2">DishHome Go</h4>
+                                        <p className="text-sm text-gray-400">Adds the DishHome live TV catalog as an external source. Channels open on DishHome Go and may require their own login.</p>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            const url = 'dishhome://live-tv';
+                                            if (playlists.some(pl => pl.url === url)) {
+                                                alert('DishHome source already added');
+                                                return;
+                                            }
+
+                                            try {
+                                                await ApiClient.addPlaylist('DishHome Go Live TV', url);
+                                                await ApiClient.syncPlaylist(url);
+                                                await loadPlaylists();
+                                                await loadChannels();
+                                                await loadStats();
+                                                alert('DishHome source added and synced');
+                                            } catch {
+                                                alert('Failed to add DishHome source');
+                                            }
+                                        }}
+                                        className="inline-flex items-center justify-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-3 rounded-lg font-bold whitespace-nowrap"
+                                    >
+                                        <ExternalLink size={18} /> Add DishHome Source
+                                    </button>
                                 </div>
                             </div>
 

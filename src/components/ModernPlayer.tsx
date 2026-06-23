@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, type FC } from 'react';
 import Hls from 'hls.js';
 import {
     Play, Pause, Volume2, VolumeX, Maximize, Minimize,
-    Settings, CheckCircle2
+    Settings, CheckCircle2, ExternalLink
 } from 'lucide-react';
 import clsx from 'clsx';
 import { type Channel } from '../utils/m3uParser';
@@ -39,15 +39,22 @@ export const ModernPlayer: FC<Props> = ({ channel, allChannels, onChannelSelect 
 
     // Initialize Player
     useEffect(() => {
-        if (!videoRef.current) return;
-
-        const video = videoRef.current;
         setIsLoading(true);
         setError('');
 
         // Reset Quality
         setQualities([]);
         setCurrentLevel(-1);
+
+        if (channel.type === 'external') {
+            setIsLoading(false);
+            setIsPlaying(false);
+            return;
+        }
+
+        if (!videoRef.current) return;
+
+        const video = videoRef.current;
 
         if (Hls.isSupported() && channel.type !== 'youtube' && channel.type !== 'iframe') {
             if (hlsRef.current) hlsRef.current.destroy();
@@ -176,15 +183,36 @@ export const ModernPlayer: FC<Props> = ({ channel, allChannels, onChannelSelect 
             <div className="w-full h-full relative bg-black flex flex-col justify-center" onMouseMove={handleMouseMove} ref={containerRef}>
                 {/* ... (Glow and Loading) ... */}
 
-                <video
-                    ref={videoRef}
-                    className="w-full h-full object-contain z-0"
-                    onClick={isMobile ? undefined : togglePlay}
-                    playsInline
-                    controls={isMobile} // Enable native controls on mobile
-                />
+                {channel.type === 'external' ? (
+                    <div className="w-full h-full flex items-center justify-center p-6 z-10">
+                        <div className="max-w-2xl w-full rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8 md:p-10 text-center shadow-2xl">
+                            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                                <ExternalLink size={28} />
+                            </div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">{channel.name}</h2>
+                            <p className="text-gray-300 mb-2">This DishHome channel opens on DishHome Go instead of playing directly inside the IPTV player.</p>
+                            <p className="text-gray-500 text-sm mb-8">DishHome protects playback behind its own authenticated site and browser restrictions, so this entry opens externally and may require an active DishHome login.</p>
+                            <div className="flex items-center justify-center gap-3 flex-wrap">
+                                <button
+                                    onClick={() => window.open(channel.url, '_blank', 'noopener,noreferrer')}
+                                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors"
+                                >
+                                    <ExternalLink size={18} /> Open in DishHome Go
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <video
+                        ref={videoRef}
+                        className="w-full h-full object-contain z-0"
+                        onClick={isMobile ? undefined : togglePlay}
+                        playsInline
+                        controls={isMobile} // Enable native controls on mobile
+                    />
+                )}
 
-                {!isMobile && (
+                {!isMobile && channel.type !== 'external' && (
                     <div className={clsx(
                         "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-20 pb-6 px-6 z-20 transition-opacity duration-300",
                         showControls ? "opacity-100" : "opacity-0"

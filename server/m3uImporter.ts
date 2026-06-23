@@ -9,7 +9,7 @@ export interface Channel {
     country?: string;
     language?: string;
     quality?: 'SD' | 'HD' | 'FHD' | '4K';
-    type: 'hls' | 'youtube' | 'iframe';
+    type: 'hls' | 'youtube' | 'iframe' | 'external';
     is_public: boolean;
     description?: string;
 }

@@ -2,17 +2,6 @@ import type { Channel } from '../utils/m3uParser';
 import type { FeaturedChannel } from '../types';
 
 const API_Base = '/api';
-// Fetch interceptor to add auth token
-const originalFetch = window.fetch;
-window.fetch = async (url, options = {}) => {
-  const token = localStorage.getItem('adminToken');
-  if (token) {
-    const headers = new Headers(options.headers);
-    headers.set('Authorization', `Bearer ${token}`);
-    options.headers = headers;
-  }
-  return originalFetch(url, options);
-};
 
 export const ApiClient = {
     getChannels: async (): Promise<Channel[]> => {

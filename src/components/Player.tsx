@@ -5,7 +5,7 @@ import { isMobile } from 'react-device-detect';
 
 interface PlayerProps {
     url: string;
-    type?: 'hls' | 'youtube' | 'iframe';
+    type?: 'hls' | 'youtube' | 'iframe' | 'external';
 }
 
 export const Player: FC<PlayerProps> = ({ url, type = 'hls' }) => { // Accept Type
@@ -145,6 +145,24 @@ export const Player: FC<PlayerProps> = ({ url, type = 'hls' }) => { // Accept Ty
                     allowFullScreen
                     title="External Stream"
                 />
+            </div>
+        )
+    }
+
+    if (type === 'external') {
+        return (
+            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden shadow-2xl ring-1 ring-white/10 flex items-center justify-center p-8">
+                <div className="text-center max-w-xl space-y-4">
+                    <AlertCircle className="mx-auto text-blue-400" size={40} />
+                    <h3 className="text-xl font-bold text-white">External Channel</h3>
+                    <p className="text-gray-400">This channel must be opened on its original provider page and may require login there.</p>
+                    <button
+                        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                        className="px-5 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors"
+                    >
+                        Open External Channel
+                    </button>
+                </div>
             </div>
         )
     }
